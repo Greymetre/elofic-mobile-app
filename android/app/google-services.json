@@ -1,0 +1,29 @@
+{
+  "project_info": {
+    "project_number": "348962016676",
+    "project_id": "elofic-fieldkonnect",
+    "storage_bucket": "elofic-fieldkonnect.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:348962016676:android:cda4409c5432d41daa0531",
+        "android_client_info": {
+          "package_name": "com.fieldconnect"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyDTCHMItumtXEGZK6cq4Lo7FDA0jlpRM8c"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}
