@@ -10,19 +10,11 @@ import store from '../../components/redux/Store';
 import Toast from 'react-native-toast-message';
 import { Dropdown } from 'react-native-element-dropdown';
 import CustomerCalendar from '../../components/CustomCalendar/CalendarPopupView';
-import { orderStatusLabel } from '../../utils/orderUtils';
 
 interface DropdownUser {
     label: string;
     value: number | string;
 }
-
-const orderStatusOptions = [
-    { label: 'All Orders', value: null },
-    { label: 'Pending', value: 0 },
-    { label: 'Partially Dispatched', value: 2 },
-    { label: 'Dispatched', value: 1 },
-];
 
 type OrderListProps = {
     navigation: any
@@ -32,7 +24,6 @@ const OrderList = ({ navigation }: OrderListProps) => {
     const [loadingUsers, setLoadingUsers] = useState<boolean>(true);
     const [usersSelect, setUsersSelect] = useState<DropdownUser[]>([]);
     const [selectedUserId, setSelectedUserId] = useState<number | string | null>(null);
-    const [selectedStatusId, setSelectedStatusId] = useState<number | null>(null);
     const [orderList, setOrderList] = useState<any[]>([]);
     const [loadingOrders, setLoadingOrders] = useState(false);
     const [showCal, setShowCal] = useState(false);
@@ -69,7 +60,7 @@ const OrderList = ({ navigation }: OrderListProps) => {
         setRange(type || 'custom');
 
         setShowCal(false);
-        fetchOrderList(selectedUserId, normalizedStart, normalizedEnd, selectedStatusId);
+        fetchOrderList(selectedUserId, normalizedStart, normalizedEnd);
 
     };
 
@@ -77,7 +68,7 @@ const OrderList = ({ navigation }: OrderListProps) => {
 
 
     useEffect(() => {
-        fetchOrderList(null, startDate, endDate, null);
+        fetchOrderList(null, startDate, endDate);
     }, []);
 
     const formatYYYYMMDD = (date: any): string => {
@@ -99,7 +90,6 @@ const OrderList = ({ navigation }: OrderListProps) => {
         userId?: number | string | null,
         start?: Date,
         end?: Date,
-        statusId?: number | null,
     ) => {
         const token = store.getState().auth?.token;
 
@@ -116,8 +106,6 @@ const OrderList = ({ navigation }: OrderListProps) => {
             if (userId) params.append("user_id", String(userId));
             if (start) params.append("startdate", formatYYYYMMDD(start));
             if (end) params.append("enddate", formatYYYYMMDD(end));
-            if (statusId !== null && statusId !== undefined) params.append("status_id", String(statusId));
-
             const url = `https://elofic.fieldkonnect.io/api/getOrderList?${params.toString()}`;
 
             const response = await fetch(url, {
@@ -210,14 +198,6 @@ const OrderList = ({ navigation }: OrderListProps) => {
                         <AppText color='black' family='InterBold' size={14}>{items?.grand_total}</AppText>
                     </View>
                 </View>
-                <View style={styles.line} />
-                <View style={[styles.row, styles.detailsRow]}>
-                    <View style={styles.detailsFirstRow}>
-                        <AppText color='black' family='InterMedium' size={14} opacity={0.8}>Status</AppText>
-                        <View style={{ height: 5 }} />
-                        <AppText color={colors.blue} family='InterBold' size={14}>{orderStatusLabel(items)}</AppText>
-                    </View>
-                </View>
                 <View style={[styles.row, styles.detailsRow]}>
                     <View style={[styles.detailsFirstRow, {paddingRight: 20}]}>
                         <AppText color='black' family='InterMedium' size={14} opacity={0.8}>Order Remark</AppText>
@@ -253,29 +233,12 @@ const OrderList = ({ navigation }: OrderListProps) => {
                         value={selectedUserId}           // ← null = shows placeholder
                         onChange={(item) => {
                             setSelectedUserId(item.value);
-                            fetchOrderList(item.value, startDate, endDate, selectedStatusId);
+                            fetchOrderList(item.value, startDate, endDate);
 
                         }}
                         renderRightIcon={() => <ArrowDownIcon />}
                     />
 
-                </View>
-                <View style={{ marginTop: 10 }}>
-                    <Dropdown
-                        style={styles.selectUser}
-                        placeholderStyle={{ color: '#718096', fontSize: 14 }}
-                        selectedTextStyle={{ color: colors.black, fontSize: 14 }}
-                        data={orderStatusOptions}
-                        labelField="label"
-                        valueField="value"
-                        placeholder="Filter by Status"
-                        value={selectedStatusId}
-                        onChange={(item) => {
-                            setSelectedStatusId(item.value);
-                            fetchOrderList(selectedUserId, startDate, endDate, item.value);
-                        }}
-                        renderRightIcon={() => <ArrowDownIcon />}
-                    />
                 </View>
                 <Pressable style={[styles.dateTimeBox, styles.row, { justifyContent: 'space-between' }]} onPress={() => setShowCal(true)}>
                     <View style={{ justifyContent: 'center' }}>

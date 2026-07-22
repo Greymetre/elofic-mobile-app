@@ -12,6 +12,8 @@ import { useDispatch } from 'react-redux'
 import { useAppSelector } from '../../components/redux/Store'
 import { colors } from '../../utils/Colors'
 import { BackIcon, UserIcon } from '../../assets/svgs/SvgsFile'
+import LocationService from '../../utils/Location/LocationService'
+import { logoutApi } from '../../api/query/AuthAPI'
 
 const data = [
   { id: 1, icon: require('../../assets/images/HomeTabs/myprofile.png'), name: 'My Profile' },
@@ -28,6 +30,24 @@ const ProfileTab = ({ handleDrawerClose }: any) => {
   const { user } = useAppSelector(
     (state) => state.auth
   );
+
+  const handleLogout = async () => {
+    try {
+      await logoutApi();
+    } catch (error) {
+      console.warn('Logout API failed:', error);
+    } finally {
+      await LocationService.stopTracking();
+      dispatch(logout());
+      dispatch(setUser(null));
+      dispatch(setToken(null));
+      navigation.reset({
+        index: 0,
+        routes: [{ name: 'LoginScreen' }],
+      });
+    }
+  };
+
   return (
     <View style={{ flex: 1 }}>
       <ScrollView style={[styles.container, { marginBottom: 20 }]} showsVerticalScrollIndicator={false}>
@@ -73,7 +93,7 @@ const ProfileTab = ({ handleDrawerClose }: any) => {
             {
               data?.map((item: any, index: number) => {
                 return (
-                  <Pressable style={[styles.itemVIew, styles.row]} onPress={() => {
+                  <Pressable style={[styles.itemVIew, styles.row]} onPress={async () => {
                     if (item?.name == "Report") {
                       navigation.navigate('Reports')
                       // navigation.navigate('UserActivityPage')
@@ -84,10 +104,7 @@ const ProfileTab = ({ handleDrawerClose }: any) => {
                       handleDrawerClose()
                     }
                     else if (item?.name == "Logout") {
-                      navigation.navigate('LoginScreen')
-                      dispatch(logout());
-                      dispatch(setUser(null))
-                      dispatch(setToken(null))
+                      await handleLogout();
                     }
 
                   }}>

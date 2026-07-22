@@ -32,9 +32,17 @@ import store, { useAppSelector } from '../../components/redux/Store';
 import { UploadIcon } from '../../assets/svgs/HomePageSvgs';
 import DateTimePicker from '@react-native-community/datetimepicker';
 import { KeyboardAwareScrollView } from 'react-native-keyboard-controller';
-const AddNewExpense = () => {
+const AddNewExpense = ({ route }: any) => {
   const navigation = useNavigation();
+  const expenseToEdit = route?.params?.mode === 'edit' ? route?.params?.expense : null;
+  const isEditMode = Boolean(expenseToEdit);
   const { user } = useAppSelector((state) => state.auth);
+  const isEditAuthorized = !isEditMode || (
+    user?.id != null &&
+    expenseToEdit?.user_id != null &&
+    String(user.id) === String(expenseToEdit.user_id) &&
+    (expenseToEdit?.status === 0 || String(expenseToEdit?.status ?? '').trim().toLowerCase() === 'pending')
+  );
   console.log(user?.payroll, 'user?.payrolluser?.payroll')
   const payroll_id = user?.payroll || 1;
   const token = store.getState()?.auth?.token || user?.access_token;
@@ -59,6 +67,7 @@ const AddNewExpense = () => {
   const [claimAmount, setClaimAmount] = useState('');
 
   const [attachments, setAttachments] = useState<any[]>([]);
+  const [deletedImageId, setDeletedImageId] = useState<number | string | null>(null);
 
   const [loadingTypes, setLoadingTypes] = useState(false);
   const [loadingCities, setLoadingCities] = useState(false);
@@ -66,6 +75,40 @@ const AddNewExpense = () => {
 
   const [showUploadModal, setShowUploadModal] = useState(false);
   const [note, setNote] = useState('');
+
+  useEffect(() => {
+    navigation.setOptions({ title: isEditMode ? 'Edit Expense' : 'Add New Expense' });
+  }, [isEditMode, navigation]);
+
+  useEffect(() => {
+    if (!isEditMode) return;
+
+    const expenseDateValue = expenseToEdit?.date || expenseToEdit?.expense_date || '';
+    const parsedDate = expenseDateValue ? new Date(expenseDateValue) : null;
+
+    setExpenseDate(expenseDateValue);
+    if (parsedDate && !Number.isNaN(parsedDate.getTime())) {
+      setExpenseDateObj(parsedDate);
+    }
+    setStartKm(String(expenseToEdit?.start_km ?? ''));
+    setStopKm(String(expenseToEdit?.stop_km ?? ''));
+    setTotalKm(String(expenseToEdit?.total_km ?? '0'));
+    setClaimAmount(String(expenseToEdit?.claim_amount ?? ''));
+    setNote(String(expenseToEdit?.note ?? ''));
+    setSelectedExpenseType({
+      id: expenseToEdit?.expenses_type,
+      name: expenseToEdit?.expenses_type_name,
+      rate: expenseToEdit?.rate,
+      allowance_type_id: expenseToEdit?.allowance_type_id,
+    });
+    const existingImages = Array.isArray(expenseToEdit?.expense_image) ? expenseToEdit.expense_image : [];
+    const existingImageIds = Array.isArray(expenseToEdit?.image_id) ? expenseToEdit.image_id : [];
+    setAttachments(existingImages.map((uri: string, index: number) => ({
+      uri,
+      mediaId: existingImageIds[index],
+      isExisting: true,
+    })));
+  }, [expenseToEdit, isEditMode]);
 
   const checkCameraPermission = async (): Promise<boolean> => {
     const permission =
@@ -258,8 +301,32 @@ const AddNewExpense = () => {
   }, [fetchCities]);
 
   useEffect(() => {
+    if (!isEditMode || selectedCity || cities.length === 0) return;
+
+    const expenseCityId = expenseToEdit?.city_id ?? expenseToEdit?.city?.city_id ?? expenseToEdit?.city?.id ?? expenseToEdit?.plan?.city?.city_id ?? expenseToEdit?.plan?.city?.id;
+    const expenseCityName = expenseToEdit?.city_name ?? expenseToEdit?.city?.city_name ?? expenseToEdit?.plan?.city?.city_name;
+    const matchingCity = cities.find((city) =>
+      (expenseCityId != null && String(city.city_id) === String(expenseCityId)) ||
+      (expenseCityName && city.city_name === expenseCityName)
+    );
+    if (matchingCity) setSelectedCity(matchingCity);
+  }, [cities, expenseToEdit, isEditMode, selectedCity]);
+
+  useEffect(() => {
     if (selectedCity) fetchExpenseTypes();
   }, [selectedCity, fetchExpenseTypes]);
+
+  useEffect(() => {
+    if (!isEditMode || selectedExpenseType || expenseTypes.length === 0) return;
+
+    const expenseTypeId = expenseToEdit?.expenses_type_id ?? expenseToEdit?.expense_type_id ?? expenseToEdit?.expenses_type;
+    const expenseTypeName = expenseToEdit?.expenses_type_name ?? expenseToEdit?.expense_type_name;
+    const matchingType = expenseTypes.find((type) =>
+      (expenseTypeId != null && String(type.id) === String(expenseTypeId)) ||
+      (expenseTypeName && type.name === expenseTypeName)
+    );
+    if (matchingType) setSelectedExpenseType(matchingType);
+  }, [expenseToEdit, expenseTypes, isEditMode, selectedExpenseType]);
 
   // Image Picker
   const openCamera = async () => {
@@ -275,8 +342,9 @@ const AddNewExpense = () => {
         saveToPhotos: false   // Change to true if you want to save to gallery
       });
 
-      if (result.assets?.[0]) {
-        setAttachments((prev) => [...prev, result.assets[0]]);
+      const capturedAsset = result.assets?.[0];
+      if (capturedAsset) {
+        setAttachments((prev) => [...prev, capturedAsset]);
       } else if (result.errorCode) {
         console.log(result, 'result.errorMessageresult.errorMessageresult.errorMessage')
         Alert.alert('Error', result.errorMessage || 'Failed to open camera');
@@ -290,21 +358,44 @@ const AddNewExpense = () => {
   const openGallery = async () => {
     setShowUploadModal(false);
     const result = await launchImageLibrary({ mediaType: 'photo', quality: 0.8, selectionLimit: 5, });
-    if (result.assets) setAttachments((prev) => [...prev, ...result.assets]);
+    const selectedAssets = result.assets;
+    if (selectedAssets) setAttachments((prev) => [...prev, ...selectedAssets]);
   };
 
   const removeAttachment = (index: number) => {
+    const attachment = attachments[index];
+    if (attachment?.isExisting && attachment?.mediaId != null) {
+      if (deletedImageId != null && String(deletedImageId) !== String(attachment.mediaId)) {
+        Alert.alert('Remove one attachment', 'Save after removing this attachment before removing another existing attachment.');
+        return;
+      }
+      setDeletedImageId(attachment.mediaId);
+    }
     setAttachments((prev) => prev.filter((_, i) => i !== index));
   };
 
   // Show KM fields only when allowance_type_id === 1
   const isKmVisible = selectedExpenseType?.allowance_type_id === 1;
+  const expenseTypeOptions = selectedExpenseType?.id != null &&
+    !expenseTypes.some((type) => String(type.id) === String(selectedExpenseType.id))
+    ? [selectedExpenseType, ...expenseTypes]
+    : expenseTypes;
 
 
 
   const handleSubmit = async () => {
-    if (!selectedCity || !selectedExpenseType || !expenseDate || !note.trim()) {
+    if (!isEditAuthorized) {
+      Alert.alert('Not allowed', 'You can only edit your own pending expenses.');
+      return;
+    }
+
+    if (!selectedExpenseType || (!isEditMode && (!selectedCity || !expenseDate || !note.trim()))) {
       Alert.alert('Missing Fields', 'Please fill all required fields (City, Expense Type, Date, and Note)');
+      return;
+    }
+
+    if (isEditMode && !expenseToEdit?.id) {
+      Alert.alert('Error', 'Expense ID is missing');
       return;
     }
 
@@ -322,10 +413,13 @@ const AddNewExpense = () => {
       const formData = new FormData();
 
       // Append text fields
+      if (isEditMode) formData.append('expense_id', String(expenseToEdit.id));
       formData.append('expenses_type', selectedExpenseType.id.toString());
       formData.append('claim_amount', claimAmount || '0');
-      formData.append('date', expenseDate);                    // YYYY-MM-DD
-      formData.append('city_id', selectedCity.city_id.toString());
+      if (!isEditMode) {
+        formData.append('date', expenseDate);                    // YYYY-MM-DD
+        formData.append('city_id', selectedCity.city_id.toString());
+      }
       formData.append('note', note.trim());
 
       // KM fields (only if KM type)
@@ -341,8 +435,9 @@ const AddNewExpense = () => {
       }
 
       // Append multiple attachments (if any)
-      if (attachments.length > 0) {
-        attachments.forEach((asset, index) => {
+      const newAttachments = attachments.filter((asset) => !asset.isExisting);
+      if (newAttachments.length > 0) {
+        newAttachments.forEach((asset, index) => {
           formData.append(`expense_file[]`, {
             uri: asset.uri,
             type: asset.type || 'image/jpeg',
@@ -351,29 +446,40 @@ const AddNewExpense = () => {
         });
       }
 
+      if (isEditMode && deletedImageId != null) {
+        formData.append('image_id', String(deletedImageId));
+      }
 
-
-      const response = await fetch('https://elofic.fieldkonnect.io/api/createExpense', {
-        method: 'POST',
-        headers: {
-          Accept: 'application/json',
-          Authorization: `Bearer ${token}`,
-          // Do NOT set Content-Type manually for FormData (React Native handles it)
-        },
-        body: formData,
-      });
+      const response = await fetch(
+        `https://elofic.fieldkonnect.io/api/${isEditMode ? 'updateExpense' : 'createExpense'}`,
+        {
+          method: 'POST',
+          headers: {
+            Accept: 'application/json',
+            Authorization: `Bearer ${token}`,
+            // Do NOT set Content-Type manually for FormData (React Native handles it)
+          },
+          body: formData,
+        }
+      );
 
       const result = await response.json();
 
       if (result.status === 'success') {
-        Alert.alert('Success', 'Expense submitted successfully!');
-        navigation.goBack();
+        Alert.alert(
+          'Success',
+          result.message || (isEditMode ? 'Expense updated successfully!' : 'Expense submitted successfully!'),
+          [{ text: 'OK', onPress: () => navigation.goBack() }]
+        );
       } else {
-        Alert.alert('Error', result.message || 'Failed to submit expense');
+        const message = typeof result.message === 'string'
+          ? result.message
+          : JSON.stringify(result.message || {});
+        Alert.alert('Error', message || `Failed to ${isEditMode ? 'update' : 'submit'} expense`);
       }
     } catch (err) {
       console.error('Submit Error:', err);
-      Alert.alert('Error', 'Something went wrong. Please try again.');
+      Alert.alert('Error', `Failed to ${isEditMode ? 'update' : 'submit'} expense. Please try again.`);
     } finally {
       setSubmitting(false);
     }
@@ -384,11 +490,11 @@ const AddNewExpense = () => {
       <KeyboardAwareScrollView style={[styles.container, { paddingHorizontal: rw(18), paddingTop: 20 }]} showsVerticalScrollIndicator={false} bottomOffset={50} keyboardDismissMode='on-drag'>
 
         {/* City Selection (Required for grade) */}
-        <AppText size={16} color="#000000" family="InterSemiBold">Select City</AppText>
-        <Pressable style={[styles.UserBox, styles.row]} onPress={() => setShowCityModal(true)}>
+        <AppText size={16} color="#000000" family="InterSemiBold">{isEditMode ? 'City' : 'Select City'}</AppText>
+        <Pressable style={[styles.UserBox, styles.row]} onPress={() => setShowCityModal(true)} disabled={isEditMode}>
           <View style={{ flex: 1, justifyContent: 'center' }}>
             <AppText size={14} color="#718096" family="InterRegular">
-              {selectedCity ? selectedCity.city_name : 'Select City'}
+              {selectedCity?.city_name || expenseToEdit?.plan?.city?.city_name || 'Select City'}
             </AppText>
           </View>
           <ArrowDownIcon color="#000000" />
@@ -401,7 +507,7 @@ const AddNewExpense = () => {
         ) : (
           <Dropdown
             style={[styles.UserBox, { paddingHorizontal: rw(12) }]}
-            data={expenseTypes}
+            data={expenseTypeOptions}
             maxHeight={300}
             labelField="name"
             valueField="id"
@@ -417,11 +523,12 @@ const AddNewExpense = () => {
         <Pressable
           style={[styles.UserBox, styles.row]}
           onPress={() => setShowDatePicker(true)}
+          disabled={isEditMode}
         >
           <View style={{ flex: 1, flexDirection: 'row', gap: 10, alignItems: 'center' }}>
             <CalenderIcon color="#3C3C3C" />
             <AppText size={14} color="#718096" family="InterRegular">
-              {expenseDate ? new Date(expenseDate).toLocaleDateString('en-GB') : 'DD-MM-YYYY'}
+              {expenseDate ? (isEditMode ? expenseDate : new Date(expenseDate).toLocaleDateString('en-GB')) : 'DD-MM-YYYY'}
             </AppText>
           </View>
           <ArrowDownIcon color="#000000" />
@@ -566,7 +673,7 @@ const AddNewExpense = () => {
 
         {/* Submit Button */}
         <Pressable style={styles.buttonView} onPress={handleSubmit} disabled={submitting}>
-          {submitting ? <ActivityIndicator color="white" /> : <AppText color="white" family="InterBold" size={16}>SUBMIT</AppText>}
+          {submitting ? <ActivityIndicator color="white" /> : <AppText color="white" family="InterBold" size={16}>{isEditMode ? 'UPDATE EXPENSE' : 'SUBMIT'}</AppText>}
         </Pressable>
       </KeyboardAwareScrollView>
 

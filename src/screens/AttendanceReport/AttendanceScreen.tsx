@@ -1,6 +1,6 @@
 
 
-import React, { useEffect, useRef, useState } from 'react';
+import React, { useCallback, useEffect, useRef, useState } from 'react';
 import {
   View,
   ScrollView,
@@ -12,6 +12,7 @@ import {
   TouchableWithoutFeedback,
   FlatList,
   KeyboardAvoidingView,
+  Alert,
 } from 'react-native';
 import Geolocation from '@react-native-community/geolocation';
 
@@ -35,6 +36,9 @@ import { Dropdown } from 'react-native-element-dropdown';
 import ActionSheet, { ActionSheetRef } from 'react-native-actions-sheet';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import useLocationHook from '../../api/hooks/uselocationhook';
+import { useFocusEffect } from '@react-navigation/native';
+import LocationService from '../../utils/Location/LocationService';
+import { requestLocationPermission } from '../../utils/Location/permissions';
 
 interface DropdownItem {
   label: string;
@@ -76,6 +80,7 @@ interface TourPlanItem {
   id: number;
   date: string;
   town: string;
+  town_name?: string;
   district: number | string;
   objectives: string;
   type: string;
@@ -335,7 +340,7 @@ const AttendanceScreen: React.FC<{ navigation: any; route: any }> = ({ navigatio
     }
   };
 
-  const autoSelectFromBeatPlans = (allObjectives: any) => {
+  const autoSelectFromBeatPlans = (allObjectives: DropdownItem[]) => {
     if (!beats?.length || !cities.length) return;
 
     // ─── Cities ───────────────────────────────────────────
@@ -387,11 +392,13 @@ const AttendanceScreen: React.FC<{ navigation: any; route: any }> = ({ navigatio
   // ────────────────────────────────────────────────
   // Load today's tour plan
   // ────────────────────────────────────────────────
-  useEffect(() => {
-    if (isPunchOutMode) return;
-    loadTourPlan();
-    loadBeatPlan()
-  }, [isPunchOutMode]);
+  useFocusEffect(
+    useCallback(() => {
+      if (isPunchOutMode) return;
+      loadTourPlan();
+      loadBeatPlan();
+    }, [isPunchOutMode])
+  );
 
   const loadTourPlan = async () => {
     setTourLoading(true);
@@ -560,6 +567,17 @@ const AttendanceScreen: React.FC<{ navigation: any; route: any }> = ({ navigatio
   // ────────────────────────────────────────────────
   // Submit handler
   // ────────────────────────────────────────────────
+  const showTourPlanRequiredAlert = () => {
+    Alert.alert(
+      'Tour Plan Required',
+      'A tour plan is required before you can punch in. No tour plan has been created for today. Please create today\'s tour plan, then return to complete your punch-in.',
+      [
+        { text: 'Not Now', style: 'cancel' },
+        { text: 'Create Tour Plan', onPress: () => navigation.navigate('CreatePlan', { item: user?.id }) },
+      ]
+    );
+  };
+
   const handleSubmit = async () => {
     if (submitting) return;
 
@@ -567,6 +585,25 @@ const AttendanceScreen: React.FC<{ navigation: any; route: any }> = ({ navigatio
     if (!token) {
       Toast.show({ type: 'error', text1: 'No authentication token found' });
       return;
+    }
+
+    if (!isPunchOutMode) {
+      if (tourLoading) {
+        Toast.show({ type: 'info', text1: 'Checking today\'s tour plan. Please wait.' });
+        return;
+      }
+      if (tourError) {
+        Toast.show({
+          type: 'error',
+          text1: 'Unable to verify today\'s tour plan',
+          text2: 'Please try again before punching in.',
+        });
+        return;
+      }
+      if (tourPlans.length === 0) {
+        showTourPlanRequiredAlert();
+        return;
+      }
     }
 
     if (!location) {
@@ -601,7 +638,8 @@ const AttendanceScreen: React.FC<{ navigation: any; route: any }> = ({ navigatio
       formData.append('punchout_longitude', location.longitude.toFixed(6));
       formData.append('punchout_summary', punchSummary.trim() || 'Day completed');
 
-      await submitAttendance('https://elofic.fieldkonnect.io/api/userPunchout', formData, 'Punch-out successful!');
+      const success = await submitAttendance('https://elofic.fieldkonnect.io/api/userPunchout', formData, 'Punch-out successful!');
+      if (success) await LocationService.stopTracking();
     } else {
 
       if (selectedBeats?.length > 0 && !beatSingle) {
@@ -630,7 +668,11 @@ const AttendanceScreen: React.FC<{ navigation: any; route: any }> = ({ navigatio
       formData.append('city', selectedCities.map((c) => c.value).join(',')); // ← comma separated
       formData.append('punchin_summary', 'Followed tour plan');
       console.log(formData, 'formDataformData')
-      await submitAttendance('https://elofic.fieldkonnect.io/api/userPunchin', formData, 'Punch-in successful!');
+      const success = await submitAttendance('https://elofic.fieldkonnect.io/api/userPunchin', formData, 'Punch-in successful!');
+      if (success) {
+        const permissionGranted = await requestLocationPermission();
+        if (permissionGranted) await LocationService.startTracking();
+      }
     }
   };
 
@@ -649,15 +691,18 @@ const AttendanceScreen: React.FC<{ navigation: any; route: any }> = ({ navigatio
 
       const json = await response.json();
 
-      if (response.ok) {
+      if (response.ok && json?.status === 'success') {
         Toast.show({ type: 'success', text1: successMessage });
         navigation.goBack();
+        return true;
       } else {
         Toast.show({ type: 'error', text1: json.message || 'Submission failed' });
+        return false;
       }
     } catch (err) {
       Toast.show({ type: 'error', text1: 'Network error. Please try again.' });
       console.error(err);
+      return false;
     } finally {
       setSubmitting(false);
     }
@@ -670,6 +715,11 @@ const AttendanceScreen: React.FC<{ navigation: any; route: any }> = ({ navigatio
   const isFormValid = isPunchOutMode
     ? !!location && !submitting
     : selectedObjectives.length > 0 && selectedCities.length > 0 && !!location && !submitting;
+  const needsTourPlan = !isPunchOutMode && !tourLoading && !tourError && tourPlans.length === 0;
+
+  const goToCreateTourPlan = () => {
+    navigation.navigate('CreatePlan', { item: user?.id });
+  };
 
 
 
@@ -825,16 +875,39 @@ const AttendanceScreen: React.FC<{ navigation: any; route: any }> = ({ navigatio
           </>
         ) : (
           <>
-            {
-              tourPlan && (
+            {tourLoading ? (
+              <View style={{ marginTop: rw(24), alignItems: 'center' }}>
+                <ActivityIndicator size="small" color={colors.blue} />
+                <AppText size={13} color="#64748B" style={{ marginTop: rw(8) }}>
+                  Checking today&apos;s tour plan...
+                </AppText>
+              </View>
+            ) : tourError ? (
+              <View style={{ marginTop: rw(20), padding: rw(16), backgroundColor: '#FFF7ED', borderRadius: rw(10), borderWidth: 1, borderColor: '#FDBA74' }}>
+                <AppText size={15} color="#9A3412" family="InterSemiBold">Unable to verify today&apos;s tour plan</AppText>
+                <AppText size={13} color="#9A3412" style={{ marginTop: rw(6) }}>Please check your connection and reopen this screen before punching in.</AppText>
+              </View>
+            ) : needsTourPlan ? (
+              <View style={{ marginTop: rw(20), padding: rw(18), backgroundColor: '#FFF7ED', borderRadius: rw(12), borderWidth: 1, borderColor: '#F97316' }}>
+                <AppText size={17} color="#9A3412" family="InterBold">Tour Plan Required</AppText>
+                <AppText size={14} color="#7C2D12" family="InterRegular" style={{ marginTop: rw(8), lineHeight: rw(21) }}>
+                  You have not created a tour plan for today. Please create today&apos;s tour plan before punching in.
+                </AppText>
+                <Pressable
+                  onPress={goToCreateTourPlan}
+                  style={{ marginTop: rw(16), height: rw(46), borderRadius: rw(8), backgroundColor: colors.blue, justifyContent: 'center', alignItems: 'center' }}
+                >
+                  <AppText size={15} color="white" family="InterBold">CREATE TOUR PLAN</AppText>
+                </Pressable>
+              </View>
+            ) : tourPlan ? (
                 <View style={{ marginTop: rw(20) }}>
                   <AppText size={14} color="#000" family="InterBold">
                     Today's Tour Plan
                   </AppText>
                   {renderTourPlanSection()}
                 </View>
-              )
-            }
+            ) : null}
             {
               beatSingle && (
                 <View style={{ marginTop: rw(20) }}>
@@ -1433,28 +1506,37 @@ const AttendanceScreen: React.FC<{ navigation: any; route: any }> = ({ navigatio
       </Modal>
 
       {/* Submit Button */}
-      <Pressable
-        style={[
-          styles.submit,
-          {
-            height: rw(48),
-            marginHorizontal: rw(20),
-            marginBottom: Platform.OS == "ios" ? 5 : rw(20),
-            opacity: isFormValid ? 1 : 0.6,
-          },
-          styles.center,
-        ]}
-        onPress={handleSubmit}
-        disabled={!isFormValid || submitting}
-      >
-        {submitting ? (
-          <ActivityIndicator color="white" />
-        ) : (
-          <AppText size={16} color="white" family="InterBold">
-            {isPunchOutMode ? 'PUNCH OUT' : 'SUBMIT'}
-          </AppText>
-        )}
-      </Pressable>
+      {needsTourPlan ? (
+        <Pressable
+          style={[styles.submit, { height: rw(48), marginHorizontal: rw(20), marginBottom: Platform.OS === 'ios' ? 5 : rw(20) }, styles.center]}
+          onPress={goToCreateTourPlan}
+        >
+          <AppText size={16} color="white" family="InterBold">CREATE TOUR PLAN</AppText>
+        </Pressable>
+      ) : (
+        <Pressable
+          style={[
+            styles.submit,
+            {
+              height: rw(48),
+              marginHorizontal: rw(20),
+              marginBottom: Platform.OS == "ios" ? 5 : rw(20),
+              opacity: isFormValid ? 1 : 0.6,
+            },
+            styles.center,
+          ]}
+          onPress={handleSubmit}
+          disabled={!isFormValid || submitting}
+        >
+          {submitting ? (
+            <ActivityIndicator color="white" />
+          ) : (
+            <AppText size={16} color="white" family="InterBold">
+              {isPunchOutMode ? 'PUNCH OUT' : 'SUBMIT'}
+            </AppText>
+          )}
+        </Pressable>
+      )}
       {/* <View style={{height: 30}} /> */}
     </SafeAreaView>
   );

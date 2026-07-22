@@ -42,9 +42,11 @@
 	<key>NSCameraUsageDescription</key>
 	<string>This app needs camera access to take photos</string>
 	<key>NSLocationAlwaysAndWhenInUseUsageDescription</key>
-	<string>Your location is needed to find nearby places.</string>
+	<string>Location tracking starts after punch-in and stops after punch-out. It is used for attendance and field activity tracking.</string>
+	<key>NSLocationAlwaysUsageDescription</key>
+	<string>Location tracking starts after punch-in and stops after punch-out. It is used for attendance and field activity tracking.</string>
 	<key>NSLocationWhenInUseUsageDescription</key>
-	<string>This app needs location access to intelligently surface location and allocate orders</string>
+	<string>FieldKonnect uses your location for attendance and field activity tracking while you are punched in.</string>
 	<key>NSPhotoLibraryAddUsageDescription</key>
 	<string>This app needs to save photos to your library.</string>
 	<key>NSPhotoLibraryUsageDescription</key>

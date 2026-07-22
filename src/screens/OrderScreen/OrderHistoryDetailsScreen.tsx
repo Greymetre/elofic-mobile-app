@@ -14,7 +14,6 @@ import { NativeModules } from 'react-native';
 import ReactNativeBlobUtil from 'react-native-blob-util';
 const { HtmlToPdf } = NativeModules;
 import { Platform } from 'react-native';
-import { orderStatusLabel } from '../../utils/orderUtils';
 
 const ENABLE_ORDER_PDF_DOWNLOAD = false;
 
@@ -405,9 +404,6 @@ const OrderHistoryDetailsScreen = () => {
                             </AppText>
                             <AppText size={14} color={'#333333'} family={'InterRegular'}>
                                 Remark :  {orderDetails?.order_remark}
-                            </AppText>
-                            <AppText size={14} color={colors.blue} family={'InterBold'}>
-                                Status : {orderStatusLabel(orderDetails)}
                             </AppText>
                             <AppText size={14} color={'#333333'} family={'InterRegular'}>
                                 Ordered / Dispatched / Pending : {Number(orderDetails?.ordered_quantity ?? totalQuantity)} / {Number(orderDetails?.dispatched_quantity ?? 0)} / {Number(orderDetails?.pending_quantity ?? Math.max(0, totalQuantity - Number(orderDetails?.dispatched_quantity ?? 0)))}

@@ -13,9 +13,10 @@ export type TopTabNameProps = {
 
 export type RootStackParamList = {
   LoginScreen: undefined;
+  ForceUpdateScreen: undefined;
   CustomerDetails: undefined;
   TourPlanPage: undefined;
-  CreatePlan: undefined;
+  CreatePlan: undefined | { item: number | string };
   BottomTab: undefined;
   CustomerList: undefined;
   AddCustomer:undefined;
@@ -24,7 +25,7 @@ export type RootStackParamList = {
   UserActivityPage:undefined;
   ProductCatalogue: undefined | Record<string, unknown>;
   SubmitOrder: undefined | Record<string, unknown>;
-  AddNewExpense:undefined;
+  AddNewExpense: undefined | { mode: 'edit'; expense: Record<string, any> };
   AttendanceScreen:undefined;
   AddSecondaryCustomer:undefined;
   VisitReport:undefined;
@@ -71,4 +72,7 @@ export type AppTextProps = {
 export type loginParmas ={
   username: any
   password: any
+  device_name?: any
+  device_type?: any
+  unique_id?: string
 }

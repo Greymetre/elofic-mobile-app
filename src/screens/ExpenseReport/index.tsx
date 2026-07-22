@@ -95,6 +95,18 @@ const ExpenseReport = ({ navigation }: any) => {
   const { mutateAsync: changeStatusApprove, isPending: isSubmitting2 } = useApproveExpenseStatus();
   const { mutateAsync: mutateDetails } = useExpenseDetails();
 
+  const isPendingExpense = (status: unknown) =>
+    status === 0 || String(status ?? '').trim().toLowerCase() === 'pending';
+
+  const canEditExpense = (expense: any) =>
+    Boolean(
+      expense &&
+      user?.id != null &&
+      expense?.user_id != null &&
+      String(user.id) === String(expense.user_id) &&
+      isPendingExpense(expense.status)
+    );
+
 
   const handleExpneseDetails = async (expense_id: any) => {
     try {
@@ -643,12 +655,25 @@ const ExpenseReport = ({ navigation }: any) => {
         <View style={[{}]}>
           <View style={[styles.modalheader]}>
             <AppText size={16} color='white' family='InterSemiBold'>Expense Approval Detail</AppText>
-            <Pressable style={{ position: "absolute", right: 15 }} onPress={() => {
-              actionSheetRef.current?.hide();
-              // setIsModalVisible(false)
-            }}>
-              <CrossIcon />
-            </Pressable>
+            <View style={{ position: 'absolute', right: 15, flexDirection: 'row', alignItems: 'center', gap: 14 }}>
+              {canEditExpense(expenseDetails) && (
+                <Pressable
+                  hitSlop={8}
+                  onPress={() => {
+                    actionSheetRef.current?.hide();
+                    navigation.navigate('AddNewExpense', {
+                      mode: 'edit',
+                      expense: expenseDetails,
+                    });
+                  }}
+                >
+                  <AppText size={14} color="white" family="InterSemiBold">Edit</AppText>
+                </Pressable>
+              )}
+              <Pressable hitSlop={8} onPress={() => actionSheetRef.current?.hide()}>
+                <CrossIcon />
+              </Pressable>
+            </View>
           </View>
           <GestureDetector gesture={Gesture.Native()}>
             <ActionSheetScrollView

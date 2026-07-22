@@ -13,6 +13,9 @@ export const useMutateLogin = () => {
   });
 };
 
+export const logoutApi = () =>
+  axiosClient.post(API_ENDPOINT.LOGOUT);
+
 // export const useMutateVerifyOTP = () => {
 //     return useMutation({
 //         mutationFn: (payload: { mobileNumber: number; otp: any }) =>

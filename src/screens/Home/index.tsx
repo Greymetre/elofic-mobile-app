@@ -1,4 +1,4 @@
-import { View, Text, ScrollView, StatusBar, Switch, FlatList, Pressable, TouchableOpacity, Modal, useWindowDimensions, Modal as RNModal, TextInput, ActivityIndicator, Alert, } from 'react-native'
+import { View, Text, ScrollView, StatusBar, Switch, FlatList, Pressable, TouchableOpacity, Modal, useWindowDimensions, Modal as RNModal, TextInput, ActivityIndicator, Alert, Platform, } from 'react-native'
 import React, { useCallback, useEffect, useRef, useState } from 'react'
 import { styles } from './styles'
 import { rw } from '../../utils/responsive'
@@ -30,6 +30,7 @@ import { KeyboardAwareScrollView } from 'react-native-keyboard-controller'
 import useLocationHook from '../../api/hooks/uselocationhook'
 import { requestLocationPermission } from '../../utils/Location/permissions'
 import LocationService from '../../utils/Location/LocationService'
+import { ANDROID_APP_VERSION, compareVersions } from '../../utils/appVersion'
 
 
 interface DropdownItem {
@@ -145,6 +146,7 @@ const Home = () => {
   }, [])
 
   const locationTracking = async () => {
+    if (LocationService.isTracking()) return;
     await requestLocationPermission();
     await LocationService.startTracking();
   }
@@ -233,18 +235,21 @@ const Home = () => {
 
         if (isToday && latest?.punchin_date && !latest?.punchout_date) {
           setIsPunchedIn(true);
-
+          await locationTracking();
         } else {
           setIsPunchedIn(false);
           setTodayPunchInData(null);
+          await LocationService.stopTracking();
         }
         if (latest?.punchout_date && latest?.punchin_date && isToday) {
           setIsPunchedIn("end");
+          await LocationService.stopTracking();
         }
         setTodayPunchInData(latest);
       } else {
         setIsPunchedIn(false);
         setTodayPunchInData(null);
+        await LocationService.stopTracking();
       }
     } catch (err) {
       console.error('Failed to fetch punch-in status:', err);
@@ -259,10 +264,43 @@ const Home = () => {
   useFocusEffect(
     useCallback(() => {
       fetchPunchInStatus();
+      checkAppVersion();
     }, [])
   );
 
   const { coords } = useLocationHook();
+
+  const checkAppVersion = async () => {
+    try {
+      const token = store.getState()?.auth?.token;
+      const response = await axios.get(
+        'https://elofic.fieldkonnect.io/api/getAppVersion',
+        {
+          headers: {
+            Authorization: `Bearer ${token}`,
+            Accept: 'application/json',
+          },
+        },
+      );
+
+      const currentVersion = Platform.OS === 'ios' ? '1.0' : ANDROID_APP_VERSION;
+      const serverVersion = Platform.OS === 'ios'
+        ? response?.data?.data?.ios_version
+        : response?.data?.data?.android_version;
+
+      console.log('Current Version:', currentVersion);
+      console.log('Server Version:', serverVersion);
+
+      if (serverVersion && compareVersions(serverVersion, currentVersion) > 0) {
+        navigation.reset({
+          index: 0,
+          routes: [{ name: 'ForceUpdateScreen' }],
+        });
+      }
+    } catch (error) {
+      console.log('Version check error:', error);
+    }
+  };
 
   // ─── Fetch Leave Balances ───────────────────────────────────────────
   const fetchLeaveBalances = async () => {

@@ -1,4 +1,4 @@
-import { View, TextInput, Pressable, ScrollView, ActivityIndicator } from 'react-native';
+import { View, TextInput, Pressable, ScrollView, ActivityIndicator, Platform } from 'react-native';
 import React, { useState } from 'react';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import FastImage from 'react-native-fast-image';
@@ -15,6 +15,7 @@ import ICEyeOff from '../../assets/svgs/eye-off';
 import ICEye from '../../assets/svgs/eye';
 import Toast from 'react-native-toast-message';
 import { KeyboardAvoidingView, KeyboardAwareScrollView } from 'react-native-keyboard-controller';
+import { getDeviceName, getUniqueDeviceId } from '../../utils/deviceIdentity';
 
 type LoginFormValues = {
   email: string;
@@ -52,9 +53,19 @@ const LoginScreen = ({ navigation }: { navigation: any }) => {
       const params = {
         username: values.email.trim(),
         password: values.password,
+        device_name: getDeviceName(),
+        device_type: Platform.OS,
+        unique_id: getUniqueDeviceId(),
       };
 
       const res = await mutateLogin(params);
+
+      // The API client already displays HTTP 400 messages. Stop here so a
+      // device-login restriction is not replaced by a generic login error.
+      if (typeof res === 'string') {
+        setServerError(res);
+        return;
+      }
 
       if (res?.data?.status === 'success') {
         dispatch(setUser(res?.data?.userinfo));

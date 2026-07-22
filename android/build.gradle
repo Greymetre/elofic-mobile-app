@@ -9,6 +9,11 @@ buildscript {
         // Prevent native modules from invoking `node` just to locate React
         // Native during Android Studio project configuration.
         REACT_NATIVE_NODE_MODULES_DIR = file("../node_modules/react-native")
+        NODE_BINARY = System.getenv("NODE_BINARY") ?: [
+            "/opt/homebrew/opt/node@22/bin/node",
+            "/opt/homebrew/bin/node",
+            "/usr/local/bin/node"
+        ].find { new File(it).canExecute() } ?: "node"
     }
     repositories {
         google()

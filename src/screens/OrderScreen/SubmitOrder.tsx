@@ -31,6 +31,9 @@ interface CustomerOption {
     entity_type: string;
     label: string;
     value: string;
+    parent_id?: number | string | null;
+    parent_name?: string | null;
+    parent_entity_type?: string | null;
 }
 
 type OptionMode = 'customer' | 'parent';
@@ -101,6 +104,9 @@ const SubmitOrder = () => {
     const initialType = String(editOrderData?.customer_type || routeData.customerType || (routeData.type === 'Distributor' ? 'DISTRIBUTOR' : '')).toUpperCase();
     const initialCustomerId = editOrderData?.buyer_id ?? routeData.customer_id ?? routeData.retailer_id ?? routeData.distributor_id;
     const initialCustomerName = editOrderData?.buyer_name ?? routeData.customer_name ?? routeData.customerName ?? routeData.text ?? routeData.legal_name ?? routeData.shop_name;
+    const initialParentId = editOrderData?.seller_id ?? routeData.parent_id ?? routeData.distributor_name;
+    const initialParentName = editOrderData?.seller_name ?? routeData.parent_name ?? routeData.distributor?.trade_name ?? routeData.distributor?.legal_name;
+    const initialParentType = editOrderData?.seller_type ?? routeData.parent_entity_type ?? (initialParentId != null ? 'DISTRIBUTOR' : null);
 
     const [customerType, setCustomerType] = useState<string | null>(initialType || null);
     const [customerOptions, setCustomerOptions] = useState<CustomerOption[]>([]);
@@ -121,6 +127,8 @@ const SubmitOrder = () => {
     const customerAbortRef = useRef<AbortController | null>(null);
     const parentAbortRef = useRef<AbortController | null>(null);
     const hasAppliedRouteDefault = useRef(false);
+    const selectedCustomerRef = useRef<CustomerOption | null>(null);
+    const selectedParentRef = useRef<CustomerOption | null>(null);
 
     useEffect(() => {
         const sourceItems = cartItems.length ? cartItems : (editOrderData?.orderdetails || []);
@@ -145,6 +153,7 @@ const SubmitOrder = () => {
             entity_type: editOrderData.seller_type,
         }, editOrderData.seller_type || 'DISTRIBUTOR');
         setParentOptions(previous => mergeOptions(previous, [parent]));
+        selectedParentRef.current = parent;
         setSelectedParent(parent);
     }, [editOrderData, initialType, isEditMode]);
 
@@ -184,7 +193,13 @@ const SubmitOrder = () => {
             }
             const options = (json.data || []).map((item: any) => normalizeOption(item, type));
             const setOptions = mode === 'customer' ? setCustomerOptions : setParentOptions;
-            setOptions(previous => append ? mergeOptions(previous, options) : options);
+            const selectedOption = mode === 'customer'
+                ? selectedCustomerRef.current
+                : selectedParentRef.current;
+            setOptions(previous => {
+                if (append) return mergeOptions(previous, options);
+                return selectedOption ? mergeOptions([selectedOption], options) : options;
+            });
             (mode === 'customer' ? setCustomerMore : setParentMore)(Boolean(json?.pagination?.more));
         } catch (error: any) {
             if (error?.name !== 'AbortError') {
@@ -217,17 +232,51 @@ const SubmitOrder = () => {
         if (hasAppliedRouteDefault.current || !initialType || initialCustomerId == null || customerType !== initialType) return;
         const matchingOption = customerOptions.find(item => String(item.id) === String(initialCustomerId));
         if (matchingOption) {
-            setSelectedCustomer(matchingOption);
+            const customerWithAssignedParent = normalizeOption({
+                ...matchingOption,
+                parent_id: matchingOption.parent_id ?? initialParentId,
+                parent_name: matchingOption.parent_name ?? initialParentName,
+                parent_entity_type: matchingOption.parent_entity_type ?? initialParentType,
+            }, initialType);
+            selectedCustomerRef.current = customerWithAssignedParent;
+            setSelectedCustomer(customerWithAssignedParent);
             hasAppliedRouteDefault.current = true;
             return;
         }
         if (initialCustomerName) {
-            const routeOption = normalizeOption({ id: initialCustomerId, text: initialCustomerName, entity_type: initialType }, initialType);
+            const routeOption = normalizeOption({
+                id: initialCustomerId,
+                text: initialCustomerName,
+                entity_type: initialType,
+                parent_id: initialParentId,
+                parent_name: initialParentName,
+                parent_entity_type: initialParentType,
+            }, initialType);
             setCustomerOptions(previous => mergeOptions(previous, [routeOption]));
+            selectedCustomerRef.current = routeOption;
             setSelectedCustomer(routeOption);
             hasAppliedRouteDefault.current = true;
         }
-    }, [customerOptions, customerType, initialCustomerId, initialCustomerName, initialType]);
+    }, [customerOptions, customerType, initialCustomerId, initialCustomerName, initialParentId, initialParentName, initialParentType, initialType]);
+
+    useEffect(() => {
+        if (!selectedCustomer || customerType === 'DISTRIBUTOR' || isEditMode) return;
+
+        if (selectedCustomer.parent_id == null) {
+            selectedParentRef.current = null;
+            setSelectedParent(null);
+            return;
+        }
+
+        const assignedParent = normalizeOption({
+            id: selectedCustomer.parent_id,
+            text: selectedCustomer.parent_name || 'Assigned Parent',
+            entity_type: selectedCustomer.parent_entity_type || 'DISTRIBUTOR',
+        }, selectedCustomer.parent_entity_type || 'DISTRIBUTOR');
+        selectedParentRef.current = assignedParent;
+        setSelectedParent(assignedParent);
+        setParentOptions(previous => mergeOptions(previous, [assignedParent]));
+    }, [customerType, isEditMode, selectedCustomer]);
 
     useEffect(() => () => {
         customerAbortRef.current?.abort();
@@ -252,6 +301,8 @@ const SubmitOrder = () => {
         parentAbortRef.current?.abort();
         hasAppliedRouteDefault.current = nextType !== initialType;
         setCustomerType(nextType);
+        selectedCustomerRef.current = null;
+        selectedParentRef.current = null;
         setSelectedCustomer(null);
         setSelectedParent(null);
         setCustomerOptions([]);
@@ -401,7 +452,10 @@ const SubmitOrder = () => {
                         searchPlaceholder="Search Customer"
                         value={selectedCustomer?.value}
                         onChangeText={setCustomerTerm}
-                        onChange={item => setSelectedCustomer(item)}
+                        onChange={item => {
+                            selectedCustomerRef.current = item;
+                            setSelectedCustomer(item);
+                        }}
                         flatListProps={{
                             onEndReached: () => loadMore('customer'),
                             onEndReachedThreshold: 0.4,
@@ -422,7 +476,10 @@ const SubmitOrder = () => {
                             searchPlaceholder="Search Parent"
                             value={selectedParent?.value}
                             onChangeText={setParentTerm}
-                            onChange={item => setSelectedParent(item)}
+                            onChange={item => {
+                                selectedParentRef.current = item;
+                                setSelectedParent(item);
+                            }}
                             flatListProps={{
                                 onEndReached: () => loadMore('parent'),
                                 onEndReachedThreshold: 0.4,

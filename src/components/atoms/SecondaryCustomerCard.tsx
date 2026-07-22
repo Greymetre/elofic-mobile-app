@@ -524,7 +524,10 @@ const SecondaryCustomerCard: React.FC<SolarCardProps> = ({
                   customer_id: item?.id,
                   customer_name: item?.shop_name || item?.company,
                   type: "Retailer",
-                  customerType: item?.type // 'RETAILER', 'MECHANIC', 'WORKSHOP', 'GARAGE'
+                  customerType: item?.type, // 'RETAILER', 'MECHANIC', 'WORKSHOP', 'GARAGE'
+                  parent_id: (item as any)?.distributor_name,
+                  parent_name: (item as any)?.distributor?.trade_name || (item as any)?.distributor?.legal_name,
+                  parent_entity_type: (item as any)?.distributor_name ? 'DISTRIBUTOR' : null,
                 });
               }}>
               <FastImage

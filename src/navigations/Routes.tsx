@@ -33,6 +33,7 @@ import PACDetails from '../screens/PACScreen/PACDetails';
 import Complaint from '../screens/Complaint';
 import CreateComplaint from '../screens/Complaint/CreateComplaint';
 import ComplaintDetails from '../screens/Complaint/ComplaintDetails';
+import ForceUpdateScreen from '../screens/Login/ForceUpdateScreen';
 
 const Stack = createNativeStackNavigator<RootStackParamList>();
 
@@ -59,6 +60,7 @@ const Routes = () => {
         }
       >
         <Stack.Screen name='LoginScreen' component={LoginScreen} />
+        <Stack.Screen name='ForceUpdateScreen' component={ForceUpdateScreen} />
         <Stack.Screen name='BottomTab' component={BottomTab} />
         <Stack.Screen name='CustomerDetails' component={CustomerDetails} options={{
           headerShown: true,
