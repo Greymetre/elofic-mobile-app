@@ -40,6 +40,7 @@ import Geolocation from '@react-native-community/geolocation';
 import { KeyboardAwareScrollView } from 'react-native-keyboard-controller';
 import { useFocusEffect } from '@react-navigation/native';
 import { PERMISSIONS, request, RESULTS } from 'react-native-permissions';
+import { requestLocationPermission as requestAndroidLocationPermission } from '../../utils/Location/permissions';
 
 const { width } = Dimensions.get('window');
 
@@ -1346,17 +1347,7 @@ const AddCustomer = ({ navigation, route }: any) => {
     const requestLocationPermission = async () => {
       if (Platform.OS === 'android') {
         try {
-          const granted = await PermissionsAndroid.request(
-            PermissionsAndroid.PERMISSIONS.ACCESS_FINE_LOCATION,
-            {
-              title: "Location Permission",
-              message: "This app needs access to your location to auto-fill coordinates.",
-              buttonNeutral: "Ask Me Later",
-              buttonNegative: "Cancel",
-              buttonPositive: "OK"
-            }
-          );
-          // You can also request ACCESS_BACKGROUND_LOCATION if needed later
+          await requestAndroidLocationPermission();
         } catch (err) {
           console.warn(err);
         }

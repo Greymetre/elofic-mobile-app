@@ -43,6 +43,7 @@ import { KeyboardAwareScrollView } from 'react-native-keyboard-controller';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { PERMISSIONS, request, RESULTS } from 'react-native-permissions';
 import { useFocusEffect } from '@react-navigation/native';
+import { requestLocationPermission as requestAndroidLocationPermission } from '../../utils/Location/permissions';
 
 
 
@@ -834,17 +835,8 @@ const AddSecondaryCustomer = ({ navigation, route }: any) => {
     const requestLocationPermission = async () => {
       if (Platform.OS === 'android') {
         try {
-          const granted = await PermissionsAndroid.request(
-            PermissionsAndroid.PERMISSIONS.ACCESS_FINE_LOCATION,
-            {
-              title: "Location Permission",
-              message: "This app needs access to your location to auto-fill coordinates.",
-              buttonNeutral: "Ask Me Later",
-              buttonNegative: "Cancel",
-              buttonPositive: "OK"
-            }
-          );
-          if (granted === PermissionsAndroid.RESULTS.GRANTED) fetchCurrentLocation();
+          const granted = await requestAndroidLocationPermission();
+          if (granted) fetchCurrentLocation();
         } catch (err) {
           console.warn(err);
         }

@@ -3,11 +3,11 @@ import { Alert, Linking, PermissionsAndroid, Platform } from "react-native";
 const showBackgroundLocationDisclosure = () =>
   new Promise<boolean>(resolve => {
     Alert.alert(
-      'Background Location Tracking',
-      'FieldKonnect collects your location while you are punched in to support attendance and field activity tracking, including when the app is in the background. Tracking stops when you punch out.',
+      'Precise Background Location',
+      'FieldKonnect collects your precise location while you are punched in, including when the app is in the background, closed, or not in use. Greymetre uses this data to verify attendance, customer visits, assigned routes, and field activity. Your location is visible only to authorized Greymetre managers and is not sold. Tracking stops when you punch out.',
       [
-        { text: 'Cancel', style: 'cancel', onPress: () => resolve(false) },
-        { text: 'Continue', onPress: () => resolve(true) },
+        { text: 'Not Now', style: 'cancel', onPress: () => resolve(false) },
+        { text: 'Agree and Continue', onPress: () => resolve(true) },
       ],
       { cancelable: true, onDismiss: () => resolve(false) },
     );
@@ -15,6 +15,20 @@ const showBackgroundLocationDisclosure = () =>
 
 export const requestLocationPermission = async () => {
   if (Platform.OS === "android") {
+    const hasForegroundBeforeRequest =
+      await PermissionsAndroid.check(PermissionsAndroid.PERMISSIONS.ACCESS_FINE_LOCATION) ||
+      await PermissionsAndroid.check(PermissionsAndroid.PERMISSIONS.ACCESS_COARSE_LOCATION);
+    const hasBackgroundBeforeRequest =
+      Number(Platform.Version) < 29 ||
+      await PermissionsAndroid.check(PermissionsAndroid.PERMISSIONS.ACCESS_BACKGROUND_LOCATION);
+
+    // Google Play requires this in-app disclosure to appear before any Android
+    // location permission dialog when background location is requested.
+    if (!hasForegroundBeforeRequest || !hasBackgroundBeforeRequest) {
+      const accepted = await showBackgroundLocationDisclosure();
+      if (!accepted) return false;
+    }
+
     const foreground = await PermissionsAndroid.requestMultiple([
       PermissionsAndroid.PERMISSIONS.ACCESS_FINE_LOCATION,
       PermissionsAndroid.PERMISSIONS.ACCESS_COARSE_LOCATION,
@@ -30,8 +44,6 @@ export const requestLocationPermission = async () => {
         PermissionsAndroid.PERMISSIONS.ACCESS_BACKGROUND_LOCATION,
       );
       if (!hasBackground) {
-        const accepted = await showBackgroundLocationDisclosure();
-        if (!accepted) return false;
         const backgroundResult = await PermissionsAndroid.request(
           PermissionsAndroid.PERMISSIONS.ACCESS_BACKGROUND_LOCATION,
         );

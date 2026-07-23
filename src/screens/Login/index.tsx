@@ -108,6 +108,11 @@ const LoginScreen = ({ navigation }: { navigation: any }) => {
             resizeMode="contain"
             source={require('../../assets/images/FieldKonnectLogo.png')}
           />
+          <FastImage
+            style={styles.eloficLogo}
+            resizeMode="contain"
+            source={require('../../assets/images/elofic_logo_login.png')}
+          />
         </View>
 
         <View style={[styles.container, styles.subContainer]}>

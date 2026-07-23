@@ -274,7 +274,7 @@ const Home = () => {
     try {
       const token = store.getState()?.auth?.token;
       const response = await axios.get(
-        'https://elofic.fieldkonnect.io/api/getAppVersion',
+        'https://elofic.fieldkonnect.io/api/get-field-connet-version',
         {
           headers: {
             Authorization: `Bearer ${token}`,
@@ -284,9 +284,11 @@ const Home = () => {
       );
 
       const currentVersion = Platform.OS === 'ios' ? '1.0' : ANDROID_APP_VERSION;
-      const serverVersion = Platform.OS === 'ios'
-        ? response?.data?.data?.ios_version
-        : response?.data?.data?.android_version;
+      const serverVersion =
+        response?.data?.data?.app_version ??
+        (Platform.OS === 'ios'
+          ? response?.data?.data?.ios_version
+          : response?.data?.data?.android_version);
 
       console.log('Current Version:', currentVersion);
       console.log('Server Version:', serverVersion);
