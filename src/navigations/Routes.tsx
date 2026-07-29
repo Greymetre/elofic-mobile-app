@@ -33,6 +33,7 @@ import Complaint from '../screens/Complaint';
 import CreateComplaint from '../screens/Complaint/CreateComplaint';
 import ComplaintDetails from '../screens/Complaint/ComplaintDetails';
 import ForceUpdateScreen from '../screens/Login/ForceUpdateScreen';
+import Notifications from '../screens/Notifications';
 
 const Stack = createNativeStackNavigator<RootStackParamList>();
 
@@ -164,6 +165,10 @@ const Routes = () => {
         }} />
         <Stack.Screen name='ComplaintDetails' component={ComplaintDetails} options={{
           headerShown: false,
+        }} />
+        <Stack.Screen name='Notifications' component={Notifications} options={{
+          headerShown: true,
+          title: 'Notifications'
         }} />
           </>
         )}

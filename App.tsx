@@ -30,7 +30,10 @@ import store, { persistor } from './src/components/redux/Store';
 import SplashScreen from './src/screens/Splash';
 import Routes from './src/navigations/Routes';
 import {handleUnauthorized} from './src/api/handleUnauthorized';
-import { subscribeToForegroundNotifications } from './src/utils/firebaseMessaging';
+import {
+  subscribeToForegroundNotifications,
+  subscribeToNotificationPresses,
+} from './src/utils/firebaseMessaging';
 ;
 
 
@@ -38,12 +41,30 @@ const queryClient = new QueryClient();
 
 const App = () => {
   const [loading, setLoading] = useState(true);
+  const loadingRef = React.useRef(true);
   const navigationRef = React.useRef<NavigationContainerRef<any>>(null);
+  const navigationReadyRef = React.useRef(false);
+  const pendingNotificationNavigationRef = React.useRef(false);
   //  const navigationRef = createNavigationContainerRef();
 
   useEffect(() => {
+    const openNotificationList = () => {
+      if (
+        !loadingRef.current &&
+        navigationReadyRef.current &&
+        navigationRef.current?.isReady()
+      ) {
+        navigationRef.current.navigate('Notifications');
+        pendingNotificationNavigationRef.current = false;
+      } else {
+        pendingNotificationNavigationRef.current = true;
+      }
+    };
+
     const unsubscribeForegroundNotifications =
       subscribeToForegroundNotifications();
+    const unsubscribeNotificationPresses =
+      subscribeToNotificationPresses(openNotificationList);
 
     const interceptor = axios.interceptors.response.use(
       response => response,
@@ -56,14 +77,32 @@ const App = () => {
     );
 
     setTimeout(() => {
+      loadingRef.current = false;
       setLoading(false);
     }, 2000);
 
     return () => {
       unsubscribeForegroundNotifications();
+      unsubscribeNotificationPresses();
       axios.interceptors.response.eject(interceptor);
     };
   }, []);
+
+  useEffect(() => {
+    if (
+      !loading &&
+      navigationReadyRef.current &&
+      pendingNotificationNavigationRef.current
+    ) {
+      // Allow the authenticated navigator to replace the splash screen first.
+      const timer = setTimeout(() => {
+        navigationRef.current?.navigate('Notifications');
+        pendingNotificationNavigationRef.current = false;
+      }, 0);
+
+      return () => clearTimeout(timer);
+    }
+  }, [loading]);
 
   const MyTheme = {
     ...DefaultTheme,
@@ -106,7 +145,14 @@ const App = () => {
                   ref={navigationRef}
                   theme={MyTheme}
                   onReady={() => {
-                    // Navigation is ready
+                    navigationReadyRef.current = true;
+                    if (
+                      !loadingRef.current &&
+                      pendingNotificationNavigationRef.current
+                    ) {
+                      navigationRef.current?.navigate('Notifications');
+                      pendingNotificationNavigationRef.current = false;
+                    }
                     console.log('Navigation is ready');
                   }}
                 >

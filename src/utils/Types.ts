@@ -40,6 +40,7 @@ export type RootStackParamList = {
   Complaint: undefined
   CreateComplaint: undefined
   ComplaintDetails: undefined
+  Notifications: undefined
 };
 
 export type AppTextProps = {

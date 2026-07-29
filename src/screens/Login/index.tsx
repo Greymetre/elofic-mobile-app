@@ -63,7 +63,7 @@ const LoginScreen = ({ navigation }: { navigation: any }) => {
         device_name: getDeviceName(),
         device_type: Platform.OS,
         unique_id: getUniqueDeviceId(),
-        fcm_token: fcmToken,
+        ...(fcmToken ? { fcm_token: fcmToken } : {}),
       };
 
       const res = await mutateLogin(params);

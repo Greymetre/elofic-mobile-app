@@ -2,7 +2,7 @@ import { View, Text, ScrollView, StatusBar, Switch, FlatList, Pressable, Touchab
 import React, { useCallback, useEffect, useRef, useState } from 'react'
 import { styles } from './styles'
 import { rw } from '../../utils/responsive'
-import { CallIcon, ChatIcon, FirstUserIcon, FourthUserIcon, LogoIcon, SecondUserIcon, ThirdUserIcon, VillageIcon } from '../../assets/svgs/HomePageSvgs'
+import { CallIcon, ChatIcon, FirstUserIcon, FourthUserIcon, LogoIcon, SecondUserIcon, ThirdUserIcon } from '../../assets/svgs/HomePageSvgs'
 import { SafeAreaView } from 'react-native-safe-area-context'
 import AppText from '../../components/AppText/AppText'
 import Graph from '../../components/atoms/Graph'
@@ -31,6 +31,7 @@ import useLocationHook from '../../api/hooks/uselocationhook'
 import { requestLocationPermission } from '../../utils/Location/permissions'
 import LocationService from '../../utils/Location/LocationService'
 import { ANDROID_APP_VERSION, compareVersions } from '../../utils/appVersion'
+import NotificationBell from '../../components/NotificationBell'
 
 
 interface DropdownItem {
@@ -623,6 +624,23 @@ const Home = () => {
                   <LogoIcon />
                 </Pressable>
                 <View style={[styles.row, styles.button]}>
+                  <Pressable
+                    style={styles.applyLeaveButton}
+                    onPress={() => {
+                      setShowLeaveModal(true);
+                      fetchLeaveBalances();
+                    }}
+                  >
+                    <AppText
+                      color={colors.blue}
+                      size={10}
+                      family='InterSemiBold'
+                      align='center'
+                    >
+                      Apply Leave
+                    </AppText>
+                  </Pressable>
+                  <NotificationBell />
                   {loadingPunchStatus ? (
                     <AppText size={14} color="white">...</AppText>
                   ) : (
@@ -646,14 +664,6 @@ const Home = () => {
 
                     </>
                   )}
-                  <Pressable
-                    onPress={() => {
-                      setShowLeaveModal(true);
-                      fetchLeaveBalances();
-                    }}
-                  >
-                    <VillageIcon />
-                  </Pressable>
                 </View>
               </View>
               <View style={styles.helloName}>
