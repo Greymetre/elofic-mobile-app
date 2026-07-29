@@ -30,6 +30,7 @@ import store, { persistor } from './src/components/redux/Store';
 import SplashScreen from './src/screens/Splash';
 import Routes from './src/navigations/Routes';
 import {handleUnauthorized} from './src/api/handleUnauthorized';
+import { subscribeToForegroundNotifications } from './src/utils/firebaseMessaging';
 ;
 
 
@@ -41,6 +42,9 @@ const App = () => {
   //  const navigationRef = createNavigationContainerRef();
 
   useEffect(() => {
+    const unsubscribeForegroundNotifications =
+      subscribeToForegroundNotifications();
+
     const interceptor = axios.interceptors.response.use(
       response => response,
       error => {
@@ -55,7 +59,10 @@ const App = () => {
       setLoading(false);
     }, 2000);
 
-    return () => axios.interceptors.response.eject(interceptor);
+    return () => {
+      unsubscribeForegroundNotifications();
+      axios.interceptors.response.eject(interceptor);
+    };
   }, []);
 
   const MyTheme = {

@@ -1,6 +1,5 @@
-import { View, TextInput, Pressable, ScrollView, ActivityIndicator, Platform } from 'react-native';
+import { View, TextInput, Pressable, ActivityIndicator, Platform } from 'react-native';
 import React, { useState } from 'react';
-import { SafeAreaView } from 'react-native-safe-area-context';
 import FastImage from 'react-native-fast-image';
 import { Formik } from 'formik';
 import * as Yup from 'yup';
@@ -15,8 +14,9 @@ import ICEyeOff from '../../assets/svgs/eye-off';
 import ICEye from '../../assets/svgs/eye';
 import Toast from 'react-native-toast-message';
 import { ANDROID_APP_VERSION } from '../../utils/appVersion';
-import { KeyboardAvoidingView, KeyboardAwareScrollView } from 'react-native-keyboard-controller';
+import { KeyboardAwareScrollView } from 'react-native-keyboard-controller';
 import { getDeviceName, getUniqueDeviceId } from '../../utils/deviceIdentity';
+import { getFcmToken } from '../../utils/firebaseMessaging';
 
 type LoginFormValues = {
   email: string;
@@ -32,7 +32,6 @@ const APP_VERSION =
 const LoginScreen = ({ navigation }: { navigation: any }) => {
   const dispatch = useDispatch();
   const { mutateAsync: mutateLogin } = useMutateLogin();
-  const [serverError, setServerError] = useState<string | null>(null);
   const [showPassword, setShowPassword] = useState(false); // ← new state
 
   const validationSchema = Yup.object().shape({
@@ -53,10 +52,10 @@ const LoginScreen = ({ navigation }: { navigation: any }) => {
     values: LoginFormValues,
     { setSubmitting, resetForm }: any
   ) => {
-    setServerError(null);
     setSubmitting(true);
 
     try {
+      const fcmToken = await getFcmToken();
       const params = {
         username: values.email.trim(),
         password: values.password,
@@ -64,6 +63,7 @@ const LoginScreen = ({ navigation }: { navigation: any }) => {
         device_name: getDeviceName(),
         device_type: Platform.OS,
         unique_id: getUniqueDeviceId(),
+        fcm_token: fcmToken,
       };
 
       const res = await mutateLogin(params);
@@ -71,7 +71,6 @@ const LoginScreen = ({ navigation }: { navigation: any }) => {
       // The API client already displays HTTP 400 messages. Stop here so a
       // device-login restriction is not replaced by a generic login error.
       if (typeof res === 'string') {
-        setServerError(res);
         return;
       }
 
@@ -85,17 +84,11 @@ const LoginScreen = ({ navigation }: { navigation: any }) => {
       } else {
         Toast.show({ type: 'error', text1: res?.data?.message || 'Login failed', visibilityTime: 5000 });
 
-        setServerError(res?.data?.message || 'Login failed');
       }
     } catch (error: any) {
       console.log('Login error:', error);
       Toast.show({ type: 'error', text1: error?.response?.data?.message || 'Login failed', visibilityTime: 5000 });
 
-      setServerError(
-        error?.response?.data?.message ||
-        error?.message ||
-        'Something went wrong. Please try again.'
-      );
     } finally {
       setSubmitting(false);
     }

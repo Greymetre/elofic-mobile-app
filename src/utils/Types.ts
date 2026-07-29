@@ -72,7 +72,9 @@ export type AppTextProps = {
 export type loginParmas ={
   username: any
   password: any
+  app_version?: string
   device_name?: any
   device_type?: any
   unique_id?: string
+  fcm_token?: string
 }

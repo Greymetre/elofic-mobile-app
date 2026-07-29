@@ -5,6 +5,11 @@ apply plugin: 'com.google.gms.google-services'
 
 ext.REACT_NATIVE_NODE_MODULES_DIR = file("../../node_modules/react-native")
 ext.REACT_NATIVE_WORKLETS_NODE_MODULES_DIR = file("../../node_modules/react-native-worklets")
+ext.NODE_BINARY = System.getenv("NODE_BINARY") ?: [
+    "/opt/homebrew/opt/node@22/bin/node",
+    "/opt/homebrew/bin/node",
+    "/usr/local/bin/node"
+].find { new File(it).canExecute() } ?: "node"
 
 /**
  * This is the configuration block to customize your React Native Android app.
@@ -29,15 +34,7 @@ react {
 
     /* Bundling */
     //   A list containing the node command and its flags. Default is just 'node'.
-    def configuredNode = System.getenv("NODE_BINARY")
-    if (!configuredNode) {
-        configuredNode = [
-            "/opt/homebrew/opt/node@22/bin/node",
-            "/opt/homebrew/bin/node",
-            "/usr/local/bin/node"
-        ].find { new File(it).canExecute() } ?: "node"
-    }
-    nodeExecutableAndArgs = [configuredNode]
+    nodeExecutableAndArgs = [NODE_BINARY]
     //
     //   The command to run when bundling. By default is 'bundle'
     // bundleCommand = "ram-bundle"
