@@ -1,4 +1,3 @@
-import { View, Text } from 'react-native'
 import React, { useEffect } from 'react'
 import { createNativeStackNavigator } from '@react-navigation/native-stack';
 import { RootStackParamList } from '../utils/Types';
@@ -17,7 +16,7 @@ import ProductCatalogue from '../screens/OrderScreen/ProductCatalogue';
 import SubmitOrder from '../screens/OrderScreen/SubmitOrder';
 import AddNewExpense from '../screens/AddNewExpense';
 import AttendanceScreen from '../screens/AttendanceReport/AttendanceScreen';
-import store, { useAppSelector } from '../components/redux/Store';
+import { useAppSelector } from '../components/redux/Store';
 import AddSecondaryCustomer from '../screens/AddCustomer/AddSecondaryCustomer';
 import VisitReport from '../screens/AttendanceReport/VisitReport';
 import UserTourList from '../screens/TourPlan/UserTourList';
@@ -38,29 +37,30 @@ import ForceUpdateScreen from '../screens/Login/ForceUpdateScreen';
 const Stack = createNativeStackNavigator<RootStackParamList>();
 
 const Routes = () => {
-  const { user } = useAppSelector(
+  const { token } = useAppSelector(
     (state) => state.auth
   );
   const dispatch = useDispatch();
 
   useEffect(() => {
     dispatch(setActiveBg(false));
-  }, [])
+  }, [dispatch])
   return (
     <>
       <Stack.Navigator
+        key={token ? 'authenticated' : 'guest'}
         screenOptions={{
           headerShown: false,
           header: (props) => <CustomHeader {...props} />
         }}
-        initialRouteName={
-          user?.access_token
-            ? "BottomTab"
-            : "LoginScreen"
-        }
       >
-        <Stack.Screen name='LoginScreen' component={LoginScreen} />
-        <Stack.Screen name='ForceUpdateScreen' component={ForceUpdateScreen} />
+        {!token ? (
+          <>
+            <Stack.Screen name='LoginScreen' component={LoginScreen} />
+            <Stack.Screen name='ForceUpdateScreen' component={ForceUpdateScreen} />
+          </>
+        ) : (
+          <>
         <Stack.Screen name='BottomTab' component={BottomTab} />
         <Stack.Screen name='CustomerDetails' component={CustomerDetails} options={{
           headerShown: true,
@@ -165,6 +165,8 @@ const Routes = () => {
         <Stack.Screen name='ComplaintDetails' component={ComplaintDetails} options={{
           headerShown: false,
         }} />
+          </>
+        )}
 
 
       </Stack.Navigator>

@@ -1,6 +1,7 @@
 import axios from 'axios';
 import Toast from 'react-native-toast-message';
 import store from '../components/redux/Store';
+import {handleUnauthorized} from './handleUnauthorized';
 export const BASE_URL = 'https://elofic.fieldkonnect.io/';
 // export const BASE_URL = 'http://192.168.1.4:8000/';
 const axiosClient = axios.create({ baseURL: BASE_URL });
@@ -19,6 +20,11 @@ axiosClient.interceptors.response.use(
     return response;
   },
   error => {
+    if (error?.response?.status === 401) {
+      handleUnauthorized();
+      return Promise.reject(error);
+    }
+
     if (error?.response?.status === 400) {
       Toast.show({
         type: 'error',
@@ -29,7 +35,7 @@ axiosClient.interceptors.response.use(
         visibilityTime: 5000
       });
 
-      return error?.response?.data?.message || error?.response?.data?.error;
+      return Promise.reject(error);
     }
 
     return Promise.reject(error);

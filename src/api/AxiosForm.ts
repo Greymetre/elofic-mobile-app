@@ -1,5 +1,6 @@
 import axios from "axios";
 import store from "../components/redux/Store";
+import {handleUnauthorized} from "./handleUnauthorized";
 export const BASE_URL = "https://elofic.fieldkonnect.io/";
 // export const BASE_URL = 'http://192.168.1.4:8000/';
 
@@ -20,8 +21,13 @@ axiosClientForm.interceptors.response.use(
     return response;
   },
   (error) => {
+    if (error?.response?.status === 401) {
+      handleUnauthorized();
+      return Promise.reject(error);
+    }
+
     if (error?.response?.status === 400) {
-      return error?.response?.data?.message;
+      return Promise.reject(error);
     }
 
     return Promise.reject(error);

@@ -28,7 +28,9 @@ const authSlice = createSlice({
       state.activeBg = action.payload; // update when API response arrives
     },
     logout: (state) => {
-      state.user = null; // clear user on logout
+      state.token = null;
+      state.user = null;
+      state.activeBg = false;
     },
   },
 });
