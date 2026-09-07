@@ -1,6 +1,5 @@
 import React, { useEffect, useState } from 'react';
-import { ActivityIndicator, Pressable, ScrollView, StyleSheet, TextInput, TouchableOpacity, View } from 'react-native';
-import { ArrowDownIcon } from '../../assets/svgs/SvgsFile';
+import { ActivityIndicator, Platform, Pressable, ScrollView, View } from 'react-native';
 import AppText from '../../components/AppText/AppText';
 import { styles } from './styles';
 import { rw } from '../../utils/responsive';
@@ -8,22 +7,10 @@ import { colors } from '../../utils/Colors';
 import { NavigationProp, ParamListBase, useNavigation, useRoute } from '@react-navigation/native';
 import Toast from 'react-native-toast-message';
 import store from '../../components/redux/Store';
-import { Dropdown } from 'react-native-element-dropdown';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import { NativeModules } from 'react-native';
 import ReactNativeBlobUtil from 'react-native-blob-util';
-const { HtmlToPdf } = NativeModules;
-import { Platform } from 'react-native';
 
-const ENABLE_ORDER_PDF_DOWNLOAD = false;
-
-interface OrderItem {
-    id: string;               // unique key
-    productName: string;
-    quantity: number;
-    rate: number;             // editable
-    amount: number;           // calculated = qty × rate
-}
+const API_BASE_URL = 'https://elofic.fieldkonnect.io/api';
 
 const TableHeader = () => (
     <View style={styles.tableHeader}>
@@ -45,18 +32,12 @@ const TableHeader = () => (
 interface TableRowProps {
     label: string;
     value?: string | number;
-    isQty?: boolean;
-    qty?: number;
-    onQtyChange?: (newQty: number) => void;
     rate?: number;
     amount?: number;
 }
 const TableRow: React.FC<TableRowProps> = ({
     label,
     value,
-    isQty = false,
-    qty,
-    onQtyChange,
     rate,
     amount,
 }) => (
@@ -91,10 +72,13 @@ const OrderHistoryDetailsScreen = () => {
     const [orderDetails, setOrderDetails] = useState<any>(null);
     const [orderItems, setOrderItems] = useState<any[]>([]);
     const [loading, setLoading] = useState(false);
+    const [downloading, setDownloading] = useState(false);
 
 
     useEffect(() => {
         fetchOrderDetails();
+        // The order ID is fixed for the lifetime of this screen instance.
+        // eslint-disable-next-line react-hooks/exhaustive-deps
     }, []);
 
     const fetchOrderDetails = async () => {
@@ -109,7 +93,7 @@ const OrderHistoryDetailsScreen = () => {
 
         try {
             const response = await fetch(
-                `https://elofic.fieldkonnect.io/api/getOrderDetails?order_id=${orderId}`,
+                `${API_BASE_URL}/getOrderDetails?order_id=${orderId}`,
                 {
                     method: 'GET',
                     headers: {
@@ -147,216 +131,90 @@ const OrderHistoryDetailsScreen = () => {
         return sum + Number(item.line_total || 0);
     }, 0);
 
-    const generatePDF = async () => {
+    const downloadOrderPDF = async () => {
+        const token = store.getState().auth?.token;
+
+        if (!token) {
+            Toast.show({ type: 'error', text1: 'Token not found' });
+            return;
+        }
+
+        setDownloading(true);
+
         try {
+            const safeOrderNumber = String(orderDetails?.orderno || orderId)
+                .replace(/[^a-zA-Z0-9_-]/g, '_');
+            const fileName = `Order_${safeOrderNumber}.pdf`;
+            const { config, fs } = ReactNativeBlobUtil;
+            const destination = Platform.OS === 'android'
+                ? `${fs.dirs.DownloadDir}/${fileName}`
+                : `${fs.dirs.DocumentDir}/${fileName}`;
 
-            // ✅ Total Quantity
-            const totalQty = orderItems.reduce((sum, item) => {
-                return sum + Number(item.quantity || 0);
-            }, 0);
-
-            const htmlContent = `
-            <!DOCTYPE html>
-            <html>
-            <head>
-            <meta charset="utf-8">
-            <style>
-            body {
-                font-family: Arial, sans-serif;
-                margin: 10px;
-                color: #000;
+            if (await fs.exists(destination)) {
+                await fs.unlink(destination);
             }
 
-            h1 {
-                font-size: 22px;
-                margin-bottom: 10px;
+            const downloadConfig = Platform.OS === 'android'
+                ? {
+                    fileCache: true,
+                    addAndroidDownloads: {
+                        useDownloadManager: true,
+                        notification: true,
+                        title: fileName,
+                        description: 'Order PDF',
+                        mime: 'application/pdf',
+                        mediaScannable: true,
+                        path: destination,
+                    },
+                }
+                : {
+                    fileCache: true,
+                    path: destination,
+                };
+
+            const result = await config(downloadConfig).fetch(
+                'GET',
+                `${API_BASE_URL}/orders/${encodeURIComponent(orderId)}/pdf`,
+                {
+                    Accept: 'application/pdf',
+                    Authorization: `Bearer ${token}`,
+                },
+            );
+
+            if (result.info().status < 200 || result.info().status >= 300) {
+                let message = 'Unable to download the generated PDF';
+
+                try {
+                    const errorBody = JSON.parse(await result.text());
+                    message = errorBody?.message || message;
+                } catch {
+                    // The server did not return a JSON error response.
+                }
+
+                if (await fs.exists(destination)) {
+                    await fs.unlink(destination);
+                }
+                throw new Error(message);
             }
-
-            h2 {
-                margin-top: 20px;
-                font-size: 18px;
-            }
-
-            table {
-                width: 100%;
-                border-collapse: collapse;
-                margin-top: 10px;
-            }
-
-            td, th {
-                border: 1px solid #ccc;
-                padding: 8px;
-                font-size: 13px;
-            }
-
-            th {
-                background-color: #eee;
-                font-weight: bold;
-            }
-
-            .section-title {
-                background-color: #f2f2f2;
-                font-weight: bold;
-            }
-
-            .right {
-                text-align: right;
-            }
-
-            .no-border td {
-                border: none !important;
-                padding-top: 10px;
-            }
-
-            </style>
-            </head>
-
-            <body>
-
-            <h1>Order Details</h1>
-
-            <table>
-            <tr>
-                <td><b>Order Number</b></td>
-                <td>${orderDetails?.orderno}</td>
-                <td><b>Order Date</b></td>
-                <td>${orderDetails?.order_date}</td>
-            </tr>
-
-            <tr class="section-title">
-                <td colspan="2">Buyer Details</td>
-                <td colspan="2">Seller Details</td>
-            </tr>
-
-            <tr>
-                <td>Name</td>
-                <td>${orderDetails?.buyer_name}</td>
-                <td>Name</td>
-                <td>${orderDetails?.seller_name}</td>
-            </tr>
-
-            <tr>
-                <td>Mobile Number</td>
-                <td>${orderDetails?.buyers?.mobile_number || '-'}</td>
-                <td>Mobile Number</td>
-                <td>${orderDetails?.seller?.mobile || '-'}</td>
-            </tr>
-
-            <tr>
-                <td>Address</td>
-                <td>${orderDetails?.buyer_address}</td>
-                <td>Address</td>
-                <td>${orderDetails?.seller_address}</td>
-            </tr>
-
-            </table>
-
-            <h2>Product Details</h2>
-
-            <table>
-            <tr>
-                <th>Product Name</th>
-                <th>Quantity</th>
-                <th>Rate(LP)</th>
-                <th>Amount</th>
-            </tr>
-
-            ${orderItems.map((item: any) => `
-                <tr>
-                <td>${item.product_name}</td>
-                <td>${item.quantity}</td>
-                <td>${item.price}</td>
-                <td>${item.line_total}</td>
-                </tr>
-            `).join('')}
-
-            </table>
-
-            <table>
-            <tr>
-                <td><b>Total Quantity</b></td>
-                <td class="right"><b>${totalQty}</b></td>
-            </tr>
-            <tr>
-                <td><b>Total Order Value</b></td>
-                <td class="right"><b>${totalOrderValue.toFixed(2)}</b></td>
-            </tr>
-            <tr>
-                <td><b>Remark</b></td>
-                <td style="white-space: pre-wrap;">
-                ${orderDetails?.order_remark || '-'}
-                </td>
-            </tr>
-            </table>
-
-
-
-            </body>
-            </html>
-            `;
-
-            const options = {
-                html: htmlContent,
-                fileName: `Order_${orderDetails?.orderno}`,
-                directory: Platform.OS === 'android' ? 'Documents' : 'Documents',
-            };
-
-            const file = await HtmlToPdf.convert(options);
-
-            if (!file?.filePath) {
-                throw new Error('PDF not generated');
-            }
-
-            const fileName = `Order_${orderDetails?.orderno}_111${Date.now()}.pdf`;
-
-            const { fs } = ReactNativeBlobUtil;
-            const destPath =
-                Platform.OS === 'android'
-                    ? `${fs.dirs.DownloadDir}/${fileName}`
-                    : `${fs.dirs.DocumentDir}/${fileName}`;
-
-            // OPTIONAL (if you don’t use timestamp)
-            const exists = await fs.exists(destPath);
-            if (exists) {
-                await fs.unlink(destPath);
-            }
-
-            // Copy file
-            await fs.cp(file.filePath, destPath);
-
-            // Step 3: Android Download Manager (VISIBLE in Downloads)
-            if (Platform.OS === 'android') {
-                await ReactNativeBlobUtil.android.addCompleteDownload({
-                    title: fileName,
-                    description: 'Order PDF downloaded',
-                    mime: 'application/pdf',
-                    path: destPath,
-                    showNotification: true,
-                });
-            }
-
-            // Step 4: iOS open file
-            if (Platform.OS === 'ios') {
-                console.log(destPath, 'destPathdestPath');
-                ReactNativeBlobUtil.ios.previewDocument(destPath);
-            }
-
-            // Alert.alert('Success', `Saved to:\n${destPath}`);
 
             Toast.show({
                 type: 'success',
-                text1: 'PDF Downloaded Successfully',
-                // text2: destPath,
+                text1: 'PDF downloaded successfully',
+                text2: Platform.OS === 'android' ? 'Saved in Downloads' : fileName,
             });
 
+            if (Platform.OS === 'ios') {
+                await ReactNativeBlobUtil.ios.previewDocument(result.path());
+            }
         } catch (error: any) {
-            console.log('PDF error:', error);
-
+            console.log('Order PDF download error:', error);
             Toast.show({
                 type: 'error',
-                text1: 'PDF Failed',
-                text2: error?.message,
+                text1: 'PDF download failed',
+                text2: error?.message || 'Please try again',
             });
+        } finally {
+            setDownloading(false);
         }
     };
 
@@ -463,15 +321,17 @@ const OrderHistoryDetailsScreen = () => {
                             })}>
                                 <AppText color='white' family='InterBold' size={16}>Edit</AppText>
                             </Pressable>
-                            {ENABLE_ORDER_PDF_DOWNLOAD ? (
-                                <Pressable style={[styles.buttonView, { width: '48%' }]} onPress={generatePDF}>
+                            <Pressable
+                                style={[styles.buttonView, { width: '48%', opacity: downloading ? 0.65 : 1 }]}
+                                onPress={downloadOrderPDF}
+                                disabled={downloading}
+                            >
+                                {downloading ? (
+                                    <ActivityIndicator color='white' />
+                                ) : (
                                     <AppText color='white' family='InterBold' size={16}>Download</AppText>
-                                </Pressable>
-                            ) : (
-                                <Pressable style={[styles.buttonView, { width: '48%', opacity: 0.5 }]} onPress={() => Toast.show({ type: 'info', text1: 'PDF download is unavailable until the backend PDF supports the new customer flow' })}>
-                                    <AppText color='white' family='InterBold' size={16}>Download Unavailable</AppText>
-                                </Pressable>
-                            )}
+                                )}
+                            </Pressable>
                             {/* <Pressable style={[styles.buttonView, { width: '48%', backgroundColor: 'red' }]} >
                                 <AppText color='white' family='InterBold' size={16}>Cancel</AppText>
                             </Pressable> */}
