@@ -185,9 +185,15 @@ const CreatePlan: React.FC = ({ navigation, route }: any) => {
     }
   };
 
+  // Fixed month names on purpose. toLocaleString('default', { month: 'short' })
+  // is locale/ICU dependent - on Android it returns "Sept" for September, which
+  // did not match the SEP key while building the payload and silently fell back
+  // to January.
+  const MONTH_CODES = ['JAN', 'FEB', 'MAR', 'APR', 'MAY', 'JUN', 'JUL', 'AUG', 'SEP', 'OCT', 'NOV', 'DEC'];
+
   const formatDate = (d: Date): string => {
     const day = String(d.getDate()).padStart(2, '0');
-    const month = d.toLocaleString('default', { month: 'short' }).toUpperCase();
+    const month = MONTH_CODES[d.getMonth()];
     const year = d.getFullYear();
     return `${day} ${month} ${year}`;
   };
@@ -388,8 +394,10 @@ const CreatePlan: React.FC = ({ navigation, route }: any) => {
 
       // Only add to payload if no errors so far (or collect all and check later)
       const [day, mon, year] = (p.date || '').split(' ');
-      const monthNum = monthMap[mon?.toUpperCase?.() ?? ''] || '01';
-      const isoDate = day ? `${day.padStart(2, '0')}-${monthNum}-${year}` : '';
+      // Trim to 3 letters so "SEPT"/"SEPTEMBER" also resolve correctly.
+      const monthNum = monthMap[(mon || '').toUpperCase().slice(0, 3)];
+      if (p.date?.trim() && !monthNum) errors.push(`Row ${rowNum}: Invalid date`);
+      const isoDate = day && monthNum ? `${day.padStart(2, '0')}-${monthNum}-${year}` : '';
 
       payloadRows.push({
         date: isoDate,
