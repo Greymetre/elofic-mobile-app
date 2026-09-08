@@ -1,4 +1,5 @@
 import { Alert, Linking, PermissionsAndroid, Platform } from "react-native";
+import Geolocation from '@react-native-community/geolocation';
 
 const showBackgroundLocationDisclosure = () =>
   new Promise<boolean>(resolve => {
@@ -68,5 +69,18 @@ export const requestLocationPermission = async () => {
     return true;
   }
 
+  Geolocation.setRNConfiguration({
+    skipPermissionRequests: false,
+    authorizationLevel: 'always',
+    enableBackgroundLocationUpdates: true,
+  });
+
+  // Starting the watcher performs the definitive permission check. Don't make
+  // screen rendering wait for this callback: iOS may not call it again when
+  // authorization was already decided in Settings.
+  Geolocation.requestAuthorization(
+    () => {},
+    () => {},
+  );
   return true;
 };

@@ -1,4 +1,4 @@
-import { NativeModules, Platform } from 'react-native';
+import { NativeModules } from 'react-native';
 import appPackage from '../../package.json';
 
 type AppInfoConstants = {
@@ -8,10 +8,13 @@ type AppInfoConstants = {
 
 const appInfo = NativeModules.AppInfo as AppInfoConstants | undefined;
 
-export const ANDROID_APP_VERSION =
-  Platform.OS === 'android' && appInfo?.versionName
+export const APP_VERSION =
+  appInfo?.versionName
     ? String(appInfo.versionName).trim()
     : appPackage.version;
+
+// Kept for callers and released code that still use the Android-specific name.
+export const ANDROID_APP_VERSION = APP_VERSION;
 
 export const compareVersions = (left: unknown, right: unknown): number => {
   const toParts = (version: unknown) =>

@@ -37,6 +37,15 @@ export const styles = StyleSheet.create({
         alignItems: 'center',
         justifyContent: 'center',
     },
+    attendanceButton: {
+        height: 28,
+        minWidth: 62,
+        paddingHorizontal: 8,
+        borderRadius: 14,
+        backgroundColor: colors.white,
+        alignItems: 'center',
+        justifyContent: 'center',
+    },
     helloName: {
         paddingHorizontal: 20
     },

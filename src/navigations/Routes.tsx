@@ -1,4 +1,6 @@
-import React, { useEffect } from 'react'
+import React, { useEffect, useState } from 'react'
+import { Platform } from 'react-native';
+import axios from 'axios';
 import { createNativeStackNavigator } from '@react-navigation/native-stack';
 import { RootStackParamList } from '../utils/Types';
 import LoginScreen from '../screens/Login';
@@ -34,6 +36,7 @@ import CreateComplaint from '../screens/Complaint/CreateComplaint';
 import ComplaintDetails from '../screens/Complaint/ComplaintDetails';
 import ForceUpdateScreen from '../screens/Login/ForceUpdateScreen';
 import Notifications from '../screens/Notifications';
+import { APP_VERSION, compareVersions } from '../utils/appVersion';
 
 const Stack = createNativeStackNavigator<RootStackParamList>();
 
@@ -42,23 +45,57 @@ const Routes = () => {
     (state) => state.auth
   );
   const dispatch = useDispatch();
+  const [forceUpdateRequired, setForceUpdateRequired] = useState(false);
 
   useEffect(() => {
     dispatch(setActiveBg(false));
   }, [dispatch])
+
+  useEffect(() => {
+    let active = true;
+
+    const checkAppVersion = async () => {
+      try {
+        const response = await axios.get(
+          'https://elofic.fieldkonnect.io/api/get-field-connet-version',
+          { timeout: 10000 },
+        );
+        const data = response?.data?.data;
+        const minimumVersion = Platform.OS === 'ios'
+          ? data?.ios_version
+          : (data?.android_version ?? data?.app_version);
+
+        if (
+          active &&
+          minimumVersion &&
+          compareVersions(minimumVersion, APP_VERSION) > 0
+        ) {
+          setForceUpdateRequired(true);
+        }
+      } catch (error) {
+        console.log('Version check error:', error);
+      }
+    };
+
+    checkAppVersion();
+    return () => {
+      active = false;
+    };
+  }, []);
   return (
     <>
       <Stack.Navigator
-        key={token ? 'authenticated' : 'guest'}
+        key={forceUpdateRequired ? 'force-update' : (token ? 'authenticated' : 'guest')}
         screenOptions={{
           headerShown: false,
           header: (props) => <CustomHeader {...props} />
         }}
       >
-        {!token ? (
+        {forceUpdateRequired ? (
+          <Stack.Screen name='ForceUpdateScreen' component={ForceUpdateScreen} />
+        ) : !token ? (
           <>
             <Stack.Screen name='LoginScreen' component={LoginScreen} />
-            <Stack.Screen name='ForceUpdateScreen' component={ForceUpdateScreen} />
           </>
         ) : (
           <>

@@ -1,4 +1,4 @@
-import { View, Text, ScrollView, StatusBar, Switch, FlatList, Pressable, TouchableOpacity, Modal, useWindowDimensions, Modal as RNModal, TextInput, ActivityIndicator, Alert, Platform, } from 'react-native'
+import { View, Text, ScrollView, StatusBar, FlatList, Pressable, TouchableOpacity, Modal, useWindowDimensions, Modal as RNModal, TextInput, ActivityIndicator, Alert, Platform, } from 'react-native'
 import React, { useCallback, useEffect, useRef, useState } from 'react'
 import { styles } from './styles'
 import { rw } from '../../utils/responsive'
@@ -30,7 +30,6 @@ import { KeyboardAwareScrollView } from 'react-native-keyboard-controller'
 import useLocationHook from '../../api/hooks/uselocationhook'
 import { requestLocationPermission } from '../../utils/Location/permissions'
 import LocationService from '../../utils/Location/LocationService'
-import { ANDROID_APP_VERSION, compareVersions } from '../../utils/appVersion'
 import NotificationBell from '../../components/NotificationBell'
 
 
@@ -148,8 +147,8 @@ const Home = () => {
 
   const locationTracking = async () => {
     if (LocationService.isTracking()) return;
-    await requestLocationPermission();
-    await LocationService.startTracking();
+    const permissionGranted = await requestLocationPermission();
+    if (permissionGranted) await LocationService.startTracking();
   }
 
 
@@ -234,23 +233,31 @@ const Home = () => {
             day: '2-digit',
           }).format(new Date());
 
+        setTodayPunchInData(latest);
+
         if (isToday && latest?.punchin_date && !latest?.punchout_date) {
           setIsPunchedIn(true);
-          await locationTracking();
+          locationTracking().catch(error => {
+            console.log('[LiveLocation] Unable to resume tracking:', error);
+          });
+        } else if (isToday && latest?.punchin_date && latest?.punchout_date) {
+          setIsPunchedIn("end");
+          LocationService.stopTracking().catch(error => {
+            console.log('[LiveLocation] Unable to stop tracking:', error);
+          });
         } else {
           setIsPunchedIn(false);
           setTodayPunchInData(null);
-          await LocationService.stopTracking();
+          LocationService.stopTracking().catch(error => {
+            console.log('[LiveLocation] Unable to stop tracking:', error);
+          });
         }
-        if (latest?.punchout_date && latest?.punchin_date && isToday) {
-          setIsPunchedIn("end");
-          await LocationService.stopTracking();
-        }
-        setTodayPunchInData(latest);
       } else {
         setIsPunchedIn(false);
         setTodayPunchInData(null);
-        await LocationService.stopTracking();
+        LocationService.stopTracking().catch(error => {
+          console.log('[LiveLocation] Unable to stop tracking:', error);
+        });
       }
     } catch (err) {
       console.error('Failed to fetch punch-in status:', err);
@@ -265,45 +272,10 @@ const Home = () => {
   useFocusEffect(
     useCallback(() => {
       fetchPunchInStatus();
-      checkAppVersion();
     }, [])
   );
 
   const { coords } = useLocationHook();
-
-  const checkAppVersion = async () => {
-    try {
-      const token = store.getState()?.auth?.token;
-      const response = await axios.get(
-        'https://elofic.fieldkonnect.io/api/get-field-connet-version',
-        {
-          headers: {
-            Authorization: `Bearer ${token}`,
-            Accept: 'application/json',
-          },
-        },
-      );
-
-      const currentVersion = Platform.OS === 'ios' ? '1.0' : ANDROID_APP_VERSION;
-      const serverVersion =
-        response?.data?.data?.app_version ??
-        (Platform.OS === 'ios'
-          ? response?.data?.data?.ios_version
-          : response?.data?.data?.android_version);
-
-      console.log('Current Version:', currentVersion);
-      console.log('Server Version:', serverVersion);
-
-      if (serverVersion && compareVersions(serverVersion, currentVersion) > 0) {
-        navigation.reset({
-          index: 0,
-          routes: [{ name: 'ForceUpdateScreen' }],
-        });
-      }
-    } catch (error) {
-      console.log('Version check error:', error);
-    }
-  };
 
   // ─── Fetch Leave Balances ───────────────────────────────────────────
   const fetchLeaveBalances = async () => {
@@ -653,12 +625,14 @@ const Home = () => {
                             </Pressable>
                           </>
                         ) : (
-                          <Switch
-                            value={isPunchedIn}
-                            onValueChange={() => handleToggleAttendance()}
-                            trackColor={{ false: '#767577', true: '#81b0ff' }}
-                            thumbColor={isPunchedIn ? '#36fd36' : '#f4f3f4'}
-                          />
+                          <Pressable
+                            style={styles.attendanceButton}
+                            onPress={handleToggleAttendance}
+                          >
+                            <AppText color={colors.blue} size={11} family="InterSemiBold">
+                              {isPunchedIn ? 'Punch Out' : 'Punch In'}
+                            </AppText>
+                          </Pressable>
                         )
                       }
 

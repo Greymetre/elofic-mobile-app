@@ -13,7 +13,7 @@ import { setToken, setUser } from '../../components/redux/slice/AuthSlice';
 import ICEyeOff from '../../assets/svgs/eye-off';
 import ICEye from '../../assets/svgs/eye';
 import Toast from 'react-native-toast-message';
-import { ANDROID_APP_VERSION } from '../../utils/appVersion';
+import { APP_VERSION } from '../../utils/appVersion';
 import { KeyboardAwareScrollView } from 'react-native-keyboard-controller';
 import { getDeviceName, getUniqueDeviceId } from '../../utils/deviceIdentity';
 import { getFcmToken } from '../../utils/firebaseMessaging';
@@ -22,12 +22,6 @@ type LoginFormValues = {
   email: string;
   password: string;
 };
-
-const APP_VERSION =
-  Platform.select({
-    android: ANDROID_APP_VERSION,
-    ios: '2.3',
-  }) || ANDROID_APP_VERSION;
 
 const LoginScreen = ({ navigation }: { navigation: any }) => {
   const dispatch = useDispatch();

@@ -41,6 +41,7 @@
       </activity>
       <service 
           android:name="com.asterinet.react.bgactions.RNBackgroundActionsTask"
+          android:stopWithTask="false"
           android:foregroundServiceType="location|dataSync"
         />
     </application>

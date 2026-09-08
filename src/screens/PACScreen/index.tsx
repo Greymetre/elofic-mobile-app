@@ -401,6 +401,7 @@ import Toast from 'react-native-toast-message';
 import CustomerCalendar from '../../components/CustomCalendar/CalendarPopupView';
 import { LocationIcon, SearchSvgIcon } from '../../assets/svgs/HomePageSvgs';
 import { useFocusEffect } from '@react-navigation/native';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 type ActivityItem = {
   id: string;
@@ -417,6 +418,7 @@ type ActivityItem = {
 };
 
 const PACScreen = ({ navigation }: any) => {
+  const insets = useSafeAreaInsets();
   const [activities, setActivities] = useState<ActivityItem[]>([]);
 
   const [loading, setLoading] = useState(false);
@@ -758,7 +760,7 @@ const PACScreen = ({ navigation }: any) => {
   return (
     <View style={styles.container}>
       {/* Header */}
-      <View style={styles.header}>
+      <View style={[styles.header, { paddingTop: insets.top + 12 }]}>
         <View style={styles.row}>
           <View>
             <AppText size={20} family="InterBold" color="white">Promotional Activity</AppText>
@@ -893,7 +895,6 @@ const styles = StyleSheet.create({
   header: {
     backgroundColor: '#1a3a6c',
     padding: 16,
-    paddingTop: 35,
   },
   row: {
     flexDirection: 'row',

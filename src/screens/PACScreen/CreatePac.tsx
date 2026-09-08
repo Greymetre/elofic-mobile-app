@@ -39,6 +39,7 @@ interface Attendee {
 }
 
 const PromotionalActivityFormScreen = ({ navigation, route }: any) => {
+  const insets = useSafeAreaInsets();
   const { isEdit = false, activityData = null } =
     route?.params || {};
   const [tab, setTab] = useState(1);
@@ -728,7 +729,14 @@ const PromotionalActivityFormScreen = ({ navigation, route }: any) => {
     <View style={styles.container}>
       {/* Header */}
 
-      <View style={[styles.header, { paddingTop: Platform.OS === 'android' ? useSafeAreaInsets()?.top + 20 : 0 }]}>
+      <View
+        style={[
+          styles.header,
+          {
+            paddingTop: insets.top + (Platform.OS === 'android' ? 20 : 8),
+          },
+        ]}
+      >
         <TouchableOpacity style={{ backgroundColor: 'rgba(255,255,255,0.2)', borderRadius: 42, justifyContent: 'center', alignItems: 'center', height: 42, width: 42, paddingBottom: 10 }} onPress={() => navigation.goBack()}>
           <AppText color="#fff" size={20}>
             ←
@@ -1236,7 +1244,7 @@ const PromotionalActivityFormScreen = ({ navigation, route }: any) => {
 
       {/* Bottom Button */}
 
-      <View style={[styles.bottomBar, { paddingBottom: useSafeAreaInsets()?.bottom + 10 }]}>
+      <View style={[styles.bottomBar, { paddingBottom: insets.bottom + 10 }]}>
         <TouchableOpacity
           style={[
             styles.submitButton,
@@ -2120,4 +2128,4 @@ const styles = StyleSheet.create({
   },
 });
 
-export default PromotionalActivityFormScreen; 
+export default PromotionalActivityFormScreen;

@@ -48,3 +48,25 @@ class ReactNativeDelegate: RCTDefaultReactNativeFactoryDelegate {
 #endif
   }
 }
+
+@objc(AppInfo)
+class AppInfo: NSObject, RCTBridgeModule {
+  static func moduleName() -> String! {
+    "AppInfo"
+  }
+
+  static func requiresMainQueueSetup() -> Bool {
+    true
+  }
+
+  func constantsToExport() -> [AnyHashable: Any]! {
+    [
+      "versionName": Bundle.main.object(
+        forInfoDictionaryKey: "CFBundleShortVersionString"
+      ) as? String ?? "0.0.0",
+      "versionCode": Int(
+        Bundle.main.object(forInfoDictionaryKey: "CFBundleVersion") as? String ?? "0"
+      ) ?? 0,
+    ]
+  }
+}

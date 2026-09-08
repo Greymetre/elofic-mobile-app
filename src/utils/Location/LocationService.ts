@@ -14,6 +14,13 @@ type QueuedLocation = {
   time: string;
 };
 
+type LocationPosition = {
+  coords: {
+    latitude: number;
+    longitude: number;
+  };
+};
+
 const getQueue = (): QueuedLocation[] => {
   try {
     return JSON.parse(locationStorage.getString(QUEUE_KEY) || '[]');
@@ -30,7 +37,7 @@ const setQueue = (locations: QueuedLocation[]) => {
 const sleep = (time: number) => new Promise<void>(resolve => setTimeout(resolve, time));
 
 const getCurrentPosition = () =>
-  new Promise<{ coords: { latitude: number; longitude: number } }>((resolve, reject) => {
+  new Promise<LocationPosition>((resolve, reject) => {
     Geolocation.getCurrentPosition(resolve, reject, {
       enableHighAccuracy: false,
       timeout: 30000,
@@ -55,13 +62,18 @@ const formatApiDateTime = (date: Date) => {
 
 class LocationService {
   private starting = false;
+  private watchId: number | null = null;
+  private latestPosition: LocationPosition | null = null;
+  private lastSentAt = 0;
+  private sending = false;
 
-  private sendCurrentLocation = async () => {
+  private sendPosition = async (position: LocationPosition) => {
+    if (this.sending) return false;
     const token = store.getState()?.auth?.token;
     if (!token) return false;
 
+    this.sending = true;
     try {
-      const position = await getCurrentPosition();
       const pendingLocations = [...getQueue(), {
         latitude: String(position.coords.latitude),
         longitude: String(position.coords.longitude),
@@ -83,18 +95,79 @@ class LocationService {
         return false;
       }
       setQueue([]);
+      this.lastSentAt = Date.now();
       return true;
+    } catch (error) {
+      console.log('[LiveLocation] Capture failed:', error);
+      return false;
+    } finally {
+      this.sending = false;
+    }
+  };
+
+  private sendCurrentLocation = async () => {
+    try {
+      const position = this.latestPosition || await getCurrentPosition();
+      return await this.sendPosition(position);
     } catch (error) {
       console.log('[LiveLocation] Capture failed:', error);
       return false;
     }
   };
 
-  private trackingTask = async () => {
-    while (BackgroundService.isRunning()) {
-      await this.sendCurrentLocation();
-      await sleep(LOCATION_INTERVAL_MS);
+  private stopLocationWatch = () => {
+    if (this.watchId !== null) {
+      Geolocation.clearWatch(this.watchId);
+      this.watchId = null;
     }
+    this.latestPosition = null;
+  };
+
+  private startLocationWatch = () => {
+    if (this.watchId !== null) return;
+
+    Geolocation.setRNConfiguration({
+      skipPermissionRequests: true,
+      authorizationLevel: 'always',
+      enableBackgroundLocationUpdates: true,
+    });
+
+    this.watchId = Geolocation.watchPosition(
+      position => {
+        this.latestPosition = position;
+        if (Date.now() - this.lastSentAt >= LOCATION_INTERVAL_MS) {
+          this.sendPosition(position).catch(error => {
+            console.log('[LiveLocation] Upload failed:', error);
+          });
+        }
+      },
+      error => {
+        console.log('[LiveLocation] Watch error:', error.code, error.message);
+        if (error.code === 1) {
+          this.stopLocationWatch();
+          BackgroundService.stop().catch(stopError => {
+            console.log('[LiveLocation] Unable to stop after permission change:', stopError);
+          });
+        }
+      },
+      {
+        enableHighAccuracy: false,
+        distanceFilter: 25,
+        interval: 60000,
+        fastestInterval: 30000,
+        maximumAge: 120000,
+      },
+    );
+  };
+
+  private trackingTask = async () => {
+    this.startLocationWatch();
+    await this.sendCurrentLocation();
+    while (BackgroundService.isRunning()) {
+      await sleep(LOCATION_INTERVAL_MS);
+      if (BackgroundService.isRunning()) await this.sendCurrentLocation();
+    }
+    this.stopLocationWatch();
   };
 
   startTracking = async () => {
@@ -123,13 +196,19 @@ class LocationService {
   };
 
   stopTracking = async () => {
-    if (!BackgroundService.isRunning()) return true;
+    if (!BackgroundService.isRunning()) {
+      this.stopLocationWatch();
+      return true;
+    }
     try {
       await this.sendCurrentLocation();
+      this.stopLocationWatch();
       await BackgroundService.stop();
       return true;
     } catch (error) {
       console.log('[LiveLocation] Unable to stop:', error);
+      this.stopLocationWatch();
+      await BackgroundService.stop();
       return false;
     }
   };
