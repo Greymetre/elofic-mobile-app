@@ -4,6 +4,10 @@ import { colors } from "../../utils/Colors";
 import { fonts, shadowStyle } from "../../utils/typography";
 
 export const styles = StyleSheet.create({
+    safeArea: {
+        flex: 1,
+        backgroundColor: '#1a3a6c'
+    },
     container: {
         flex: 1,
         backgroundColor: '#eef2fa'
@@ -11,7 +15,7 @@ export const styles = StyleSheet.create({
     header: {
         backgroundColor: '#1a3a6c',
         padding: 16,
-        paddingTop: 35,
+        paddingTop: 16,
         gap: 14
     },
     row: {

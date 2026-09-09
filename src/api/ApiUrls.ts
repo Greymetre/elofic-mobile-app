@@ -1,6 +1,7 @@
 export const API_ENDPOINT = {
   //auth
   LOGIN : "api/login",
+  SIGNUP: "api/signup",
   LOGOUT: "api/logout",
   GET_STATE_LIST : "api/getStateList",
   GET_DISTRICT_LIST : "api/getDistrictList",

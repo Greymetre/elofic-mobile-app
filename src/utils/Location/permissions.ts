@@ -71,8 +71,8 @@ export const requestLocationPermission = async () => {
 
   Geolocation.setRNConfiguration({
     skipPermissionRequests: false,
-    authorizationLevel: 'always',
-    enableBackgroundLocationUpdates: true,
+    authorizationLevel: 'whenInUse',
+    enableBackgroundLocationUpdates: false,
   });
 
   // Starting the watcher performs the definitive permission check. Don't make

@@ -39,7 +39,7 @@ export const dashboardTiles = [
   },
   {
     id: "6",
-    title: "Lead",
+    title: "Complaint",
     icon: <LeadIcon/>,
     bgColor: colors.blue,
     navigateTo: "Complaint",

@@ -83,6 +83,10 @@ const LoginScreen = ({ navigation }: { navigation: any }) => {
       console.log('Login error:', error);
       Toast.show({ type: 'error', text1: error?.response?.data?.message || 'Login failed', visibilityTime: 5000 });
 
+      if (error?.response?.data?.message === 'Account deactivated. Contact admin.') {
+        navigation.replace('AccountPendingScreen');
+      }
+
     } finally {
       setSubmitting(false);
     }
@@ -225,6 +229,20 @@ const LoginScreen = ({ navigation }: { navigation: any }) => {
                     </AppText>
                   )}
                 </Pressable>
+                <View style={{ height: 5 }} />
+                {Platform.OS === 'ios' && (
+                  <AppText color="gray" family="InterSemiBold" size={14} align="center">
+                    Don't have an account?{' '}
+                    <AppText
+                      color={colors.blue}
+                      family="InterSemiBold"
+                      size={14}
+                      onPress={() => navigation.replace('SignUpScreen')}
+                    >
+                      Sign Up
+                    </AppText>
+                  </AppText>
+                )}
               </View>
             )}
           </Formik>

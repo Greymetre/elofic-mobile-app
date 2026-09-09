@@ -1,5 +1,6 @@
 import Geolocation from '@react-native-community/geolocation';
 import BackgroundService from 'react-native-background-actions';
+import { Platform } from 'react-native';
 import { createMMKV } from 'react-native-mmkv';
 import store from '../../components/redux/Store';
 
@@ -66,6 +67,7 @@ class LocationService {
   private latestPosition: LocationPosition | null = null;
   private lastSentAt = 0;
   private sending = false;
+  private iosTracking = false;
 
   private sendPosition = async (position: LocationPosition) => {
     if (this.sending) return false;
@@ -128,8 +130,8 @@ class LocationService {
 
     Geolocation.setRNConfiguration({
       skipPermissionRequests: true,
-      authorizationLevel: 'always',
-      enableBackgroundLocationUpdates: true,
+      authorizationLevel: Platform.OS === 'ios' ? 'whenInUse' : 'always',
+      enableBackgroundLocationUpdates: Platform.OS !== 'ios',
     });
 
     this.watchId = Geolocation.watchPosition(
@@ -171,11 +173,21 @@ class LocationService {
   };
 
   startTracking = async () => {
-    if (BackgroundService.isRunning() || this.starting) return true;
+    if (this.isTracking() || this.starting) return true;
     if (!store.getState()?.auth?.token) return false;
 
     this.starting = true;
     try {
+      // Apple does not permit persistent background location solely for employee
+      // tracking. On iOS, collect updates only while the app is in use. Android
+      // retains the foreground service used during an active punched-in shift.
+      if (Platform.OS === 'ios') {
+        this.iosTracking = true;
+        this.startLocationWatch();
+        await this.sendCurrentLocation();
+        return true;
+      }
+
       await BackgroundService.start(this.trackingTask, {
         taskName: 'LiveLocationTracking',
         taskTitle: 'FieldKonnect location tracking',
@@ -196,6 +208,13 @@ class LocationService {
   };
 
   stopTracking = async () => {
+    if (Platform.OS === 'ios') {
+      if (this.iosTracking) await this.sendCurrentLocation();
+      this.iosTracking = false;
+      this.stopLocationWatch();
+      return true;
+    }
+
     if (!BackgroundService.isRunning()) {
       this.stopLocationWatch();
       return true;
@@ -213,7 +232,7 @@ class LocationService {
     }
   };
 
-  isTracking = () => BackgroundService.isRunning();
+  isTracking = () => Platform.OS === 'ios' ? this.iosTracking : BackgroundService.isRunning();
 }
 
 export default new LocationService();

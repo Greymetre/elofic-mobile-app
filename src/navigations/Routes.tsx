@@ -4,6 +4,8 @@ import axios from 'axios';
 import { createNativeStackNavigator } from '@react-navigation/native-stack';
 import { RootStackParamList } from '../utils/Types';
 import LoginScreen from '../screens/Login';
+import SignUpScreen from '../screens/Login/SignUpScreen';
+import AccountPendingScreen from '../screens/Login/AccountPendingScreen';
 import CustomerDetails from '../screens/Customer/CustomerDetails';
 import CustomHeader from '../components/Header';
 import TourPlanPage from '../screens/TourPlan';
@@ -96,6 +98,8 @@ const Routes = () => {
         ) : !token ? (
           <>
             <Stack.Screen name='LoginScreen' component={LoginScreen} />
+            <Stack.Screen name='SignUpScreen' component={SignUpScreen} />
+            <Stack.Screen name='AccountPendingScreen' component={AccountPendingScreen} />
           </>
         ) : (
           <>

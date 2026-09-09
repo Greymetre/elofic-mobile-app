@@ -317,7 +317,8 @@ const Complaint = ({ navigation }: any) => {
   // }
 
   return (
-    <View style={styles.container}>
+    <SafeAreaView style={styles.safeArea} edges={['top']}>
+      <View style={styles.container}>
       <View style={[styles.header, styles.row, { alignItems: "flex-start", }]}>
         <Pressable style={styles.backBtn} onPress={() => navigation.goBack()}>
           <Image
@@ -574,7 +575,8 @@ const Complaint = ({ navigation }: any) => {
         range={rangeType}
         onApplyClick={handleApply}
       />
-    </View>
+      </View>
+    </SafeAreaView>
   )
 }
 

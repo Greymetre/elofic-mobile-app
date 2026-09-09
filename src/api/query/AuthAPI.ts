@@ -2,7 +2,7 @@
 // import { API_ENDPOINT } from "../ApiUrls";
 
 import { useMutation } from "@tanstack/react-query";
-import { loginParmas } from "../../utils/Types";
+import { loginParmas, signupParmas } from "../../utils/Types";
 import axiosClient from "../AxiosClient";
 import { API_ENDPOINT } from "../ApiUrls";
 
@@ -15,6 +15,13 @@ export const useMutateLogin = () => {
 
 export const logoutApi = () =>
   axiosClient.post(API_ENDPOINT.LOGOUT);
+
+export const useMutateSignup = () => {
+  return useMutation({
+    mutationFn: (payload: signupParmas) =>
+      axiosClient.post(API_ENDPOINT.SIGNUP, payload),
+  });
+};
 
 // export const useMutateVerifyOTP = () => {
 //     return useMutation({

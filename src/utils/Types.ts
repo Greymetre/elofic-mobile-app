@@ -13,6 +13,8 @@ export type TopTabNameProps = {
 
 export type RootStackParamList = {
   LoginScreen: undefined;
+  SignUpScreen: undefined;
+  AccountPendingScreen: undefined;
   ForceUpdateScreen: undefined;
   CustomerDetails: undefined;
   TourPlanPage: undefined;
@@ -79,3 +81,10 @@ export type loginParmas ={
   unique_id?: string
   fcm_token?: string
 }
+
+export type signupParmas = {
+  name: string;
+  mobile: string;
+  email: string;
+  password: string;
+};
