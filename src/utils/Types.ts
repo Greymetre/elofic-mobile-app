@@ -23,6 +23,9 @@ export type RootStackParamList = {
   CustomerList: undefined;
   AddCustomer:undefined;
   AttendanceReport:undefined;
+  AttendanceOverviewDetails: undefined;
+  SalesPerformance: undefined;
+  PromotionalPerformance: undefined;
   ExpenseReport:undefined;
   UserActivityPage:undefined;
   ProductCatalogue: undefined | Record<string, unknown>;

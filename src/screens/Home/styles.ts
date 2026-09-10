@@ -33,21 +33,25 @@ export const styles = StyleSheet.create({
         flexDirection: "row",
         alignItems: 'center',
     },
+    brandGroup: {
+        flexDirection: 'row',
+        alignItems: 'center',
+        gap: 8,
+    },
+    eloficHeaderLogo: {
+        width: 70,
+        height: 32,
+    },
+    drawerEloficLogo: {
+        width: 64,
+        height: 30,
+    },
     button: {
         gap: 10
     },
     applyLeaveButton: {
         height: 28,
         paddingHorizontal: 9,
-        borderRadius: 14,
-        backgroundColor: colors.white,
-        alignItems: 'center',
-        justifyContent: 'center',
-    },
-    attendanceButton: {
-        height: 28,
-        minWidth: 62,
-        paddingHorizontal: 8,
         borderRadius: 14,
         backgroundColor: colors.white,
         alignItems: 'center',

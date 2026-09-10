@@ -110,7 +110,14 @@ const ProfileTab = ({ handleDrawerClose }: any) => {
           <View style={[styles.header, styles.row, {}]}>
             <Pressable style={{ alignItems: 'center', flexDirection: "row", gap: 20 }} onPress={handleDrawerClose}>
               <BackIcon size={28} color="white" />
-              <LogoIcon />
+              <View style={styles.brandGroup}>
+                <LogoIcon />
+                <FastImage
+                  source={require('../../assets/images/elofic_logo_login.png')}
+                  resizeMode={FastImage.resizeMode.contain}
+                  style={styles.drawerEloficLogo}
+                />
+              </View>
             </Pressable>
             <View style={[styles.row, styles.button]}>
               <AppText size={12} color='white' family='InterMedium'>Good Day</AppText>

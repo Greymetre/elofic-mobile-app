@@ -39,6 +39,9 @@ import ComplaintDetails from '../screens/Complaint/ComplaintDetails';
 import ForceUpdateScreen from '../screens/Login/ForceUpdateScreen';
 import Notifications from '../screens/Notifications';
 import MyProfile from '../screens/MyProfile';
+import AttendanceOverviewScreen from '../screens/AttendanceOverview';
+import SalesPerformanceScreen from '../screens/SalesPerformance';
+import PromotionalPerformanceScreen from '../screens/PromotionalPerformance';
 import { APP_VERSION, compareVersions } from '../utils/appVersion';
 
 const Stack = createNativeStackNavigator<RootStackParamList>();
@@ -113,6 +116,9 @@ const Routes = () => {
           headerShown: true,
           title: 'Attendance Report'
         }} />
+        <Stack.Screen name='AttendanceOverviewDetails' component={AttendanceOverviewScreen} />
+        <Stack.Screen name='SalesPerformance' component={SalesPerformanceScreen} />
+        <Stack.Screen name='PromotionalPerformance' component={PromotionalPerformanceScreen} />
         <Stack.Screen name='ExpenseReport' component={ExpenseReport} options={{
           headerShown: true,
           title: 'Expense Approval'

@@ -4,6 +4,7 @@ import Svg, { Circle, Rect } from 'react-native-svg';
 import AppText from '../AppText/AppText';
 import { colors } from '../../utils/Colors';
 import { rw } from '../../utils/responsive';
+import PrimaryShineChip from './PrimaryShineChip';
 
 const targetData = {
   uniqueCustomers: 13,
@@ -73,9 +74,7 @@ const TargetAchievementOverview = ({ onViewAll }: { onViewAll?: () => void }) =>
           Target VS{`\n`}Achievement
         </AppText>
         <View style={styles.headerAction}>
-          <View style={styles.primaryBadge}>
-            <AppText size={12} color={colors.blue} family="InterSemiBold">Primary</AppText>
-          </View>
+          <PrimaryShineChip label="Primary" />
           <Pressable onPress={onViewAll} hitSlop={10}>
             <AppText size={13} color={colors.blue} family="InterSemiBold">View All  →</AppText>
           </Pressable>
@@ -142,7 +141,6 @@ const styles = StyleSheet.create({
   section: { marginTop: 26, paddingHorizontal: 20 },
   sectionHeader: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginBottom: 14 },
   headerAction: { flexDirection: 'row', alignItems: 'center', gap: 8 },
-  primaryBadge: { paddingHorizontal: 12, paddingVertical: 6, borderRadius: 18, backgroundColor: '#EEEEF8' },
   card: { padding: 18, backgroundColor: colors.white, borderRadius: 22, shadowColor: '#233054', shadowOffset: { width: 0, height: 8 }, shadowOpacity: 0.08, shadowRadius: 14, elevation: 4 },
   cardHeader: { flexDirection: 'row', alignItems: 'center' },
   chartIcon: { width: 56, height: 56, borderRadius: 14, backgroundColor: '#41599F', alignItems: 'center', justifyContent: 'center', marginRight: 12 },

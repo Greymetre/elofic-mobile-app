@@ -1,16 +1,14 @@
-import { View, Text, ScrollView, StatusBar, FlatList, Pressable, TouchableOpacity, Modal, useWindowDimensions, Modal as RNModal, TextInput, ActivityIndicator, Alert, Platform, } from 'react-native'
+import { View, Text, ScrollView, StatusBar, FlatList, Pressable, TouchableOpacity, Modal, useWindowDimensions, Modal as RNModal, TextInput, ActivityIndicator, Alert, Platform, Switch, } from 'react-native'
 import React, { useCallback, useEffect, useRef, useState } from 'react'
 import { styles } from './styles'
 import { rw } from '../../utils/responsive'
-import { CallIcon, ChatIcon, FirstUserIcon, FourthUserIcon, LogoIcon, SecondUserIcon, ThirdUserIcon } from '../../assets/svgs/HomePageSvgs'
+import { FirstUserIcon, FourthUserIcon, LogoIcon, SecondUserIcon, ThirdUserIcon } from '../../assets/svgs/HomePageSvgs'
 import { SafeAreaView } from 'react-native-safe-area-context'
 import AppText from '../../components/AppText/AppText'
 import { CrossIcon } from '../../assets/svgs/SvgsFile'
 import { colors } from '../../utils/Colors'
-import { activityTimeline, dashboardTiles, summaryStats } from '../../components/Comman/CommanFunction'
+import { dashboardTiles } from '../../components/Comman/CommanFunction'
 import TileCard from '../../components/atoms/TileCard'
-import SummaryCard from '../../components/atoms/SummaryCard'
-import ActivityCard from '../../components/atoms/ActivityCard'
 import { NavigationProp, ParamListBase, useFocusEffect, useNavigation } from '@react-navigation/native'
 import { useDispatch } from 'react-redux'
 import { logout, setActiveBg } from '../../components/redux/slice/AuthSlice'
@@ -34,6 +32,9 @@ import AttendanceOverview, { AttendanceCounts } from '../../components/atoms/Att
 import DashboardSummary from '../../components/atoms/DashboardSummary'
 import TargetAchievementOverview from '../../components/atoms/TargetAchievementOverview'
 import SecondaryPartnerDetails from '../../components/atoms/SecondaryPartnerDetails'
+import TopPerformingSkus from '../../components/atoms/TopPerformingSkus'
+import PromotionalActivitiesOverview from '../../components/atoms/PromotionalActivitiesOverview'
+import FastImage from 'react-native-fast-image'
 
 
 interface DropdownItem {
@@ -84,7 +85,6 @@ const Home = () => {
   const [selectedBalType, setSelectedBalType] = useState<string | null>(null);
   const [reason, setReason] = useState('');
 
-  const [selectedUser, setSelectedUser] = useState<DropdownItem | null>(null);
   const [showCal, setShowCal] = useState(false);
   const [rangeType, setRange] = useState('currentMonth');
   const [page, setPage] = useState(1);
@@ -94,63 +94,6 @@ const Home = () => {
   const [filteredUsers, setFilteredUsers] = useState<DropdownItem[]>([]);
   const [userSearchText, setUserSearchText] = useState('');
   const [showUserModal, setShowUserModal] = useState(false);
-
-  const [stats, setStats] = useState<{
-    total_customers: number;
-    total_orders: number;
-    total_order_value: number;
-    total_quantity?: number; // optional
-  } | null>(null);
-
-  const fetchHierarchyStats = useCallback(async () => {
-    try {
-      setStatsLoading(true);
-      setStatsError(null);
-
-      const token = store.getState()?.auth?.token;
-      if (!token) {
-        setStatsError("No authentication token found");
-        return;
-      }
-
-      // Optional: pass selectedUser?.value as user_id
-      const params: any = {};
-      if (selectedUser?.value) {
-        params.user_id = selectedUser.value;
-      }
-      // You can also add date range if backend supports it
-      // if (startDate && endDate) {
-      //   params.startdate = formatYYYYMMDD(startDate);
-      //   params.enddate = formatYYYYMMDD(endDate);
-      // }
-
-      const response = await axios.get(
-        `https://elofic.fieldkonnect.io/api/getHierarchyOrderStats`,
-        {
-          headers: {
-            Authorization: `Bearer ${token}`,
-            Accept: 'application/json',
-          },
-          params,
-        }
-      );
-
-      if (response.data?.status === 'success') {
-        setStats(response.data.data);
-      } else {
-        setStatsError(response.data?.message || 'Failed to load stats');
-      }
-    } catch (err: any) {
-      console.error('Stats fetch error:', err);
-      setStatsError(err.response?.data?.message || 'Error fetching stats');
-      Toast.show({
-        type: 'error',
-        text1: 'Failed to load dashboard stats',
-      });
-    } finally {
-      setStatsLoading(false);
-    }
-  }, [selectedUser?.value]); // re-fetch when selected user changes
 
   useEffect(() => {
     // locationTracking()
@@ -162,14 +105,6 @@ const Home = () => {
     if (permissionGranted) await LocationService.startTracking();
   }
 
-
-  // Re-fetch when user changes (or date range if you add it later)
-  useEffect(() => {
-    fetchHierarchyStats();
-  }, [selectedUser?.value, fetchHierarchyStats]);
-
-  const [statsLoading, setStatsLoading] = useState(true);
-  const [statsError, setStatsError] = useState<string | null>(null);
 
   const [startDate, setStartDate] = useState<any>(() => {
     const now = new Date();
@@ -650,8 +585,13 @@ const Home = () => {
             <View style={styles.blueContaier} />
             <SafeAreaView style={{ flex: 1 }} edges={['top']}>
               <View style={[styles.header, styles.row]}>
-                <Pressable onPress={handleDrawerPress}>
+                <Pressable onPress={handleDrawerPress} style={styles.brandGroup}>
                   <LogoIcon />
+                  <FastImage
+                    source={require('../../assets/images/elofic_logo_login.png')}
+                    resizeMode={FastImage.resizeMode.contain}
+                    style={styles.eloficHeaderLogo}
+                  />
                 </Pressable>
                 <View style={[styles.row, styles.button]}>
                   <Pressable
@@ -683,14 +623,12 @@ const Home = () => {
                             </Pressable>
                           </>
                         ) : (
-                          <Pressable
-                            style={styles.attendanceButton}
-                            onPress={handleToggleAttendance}
-                          >
-                            <AppText color={colors.blue} size={11} family="InterSemiBold">
-                              {isPunchedIn ? 'Punch Out' : 'Punch In'}
-                            </AppText>
-                          </Pressable>
+                          <Switch
+                            value={Boolean(isPunchedIn)}
+                            onValueChange={handleToggleAttendance}
+                            trackColor={{ false: '#767577', true: '#81B0FF' }}
+                            thumbColor={isPunchedIn ? '#36FD36' : '#F4F3F4'}
+                          />
                         )
                       }
 
@@ -743,57 +681,22 @@ const Home = () => {
               <AttendanceOverview
                 counts={attendanceCounts}
                 loading={attendanceLoading}
-                onViewAll={() => navigation.navigate('AttendanceReport')}
+                onViewAll={() => navigation.navigate('AttendanceOverviewDetails')}
               />
 
               <DashboardSummary />
 
               <SecondaryPartnerDetails />
 
-              <TargetAchievementOverview />
-
-              <FlatList
-                data={summaryStats}
-                horizontal
-                showsHorizontalScrollIndicator={false}
-                keyExtractor={(item) => item.id}
-                contentContainerStyle={{ paddingHorizontal: rw(20), gap: rw(12), marginTop: 20 }}
-                renderItem={({ item }) => (
-                  <SummaryCard
-                    item={item}
-                    orderValue={stats?.total_order_value?.toLocaleString()}
-                    quantity={stats?.total_quantity}
-                    totalCustomer={stats?.total_customers}
-                  />
-                )}
+              <TargetAchievementOverview
+                onViewAll={() => navigation.navigate('SalesPerformance')}
               />
 
-              <View style={styles.mainContainer}>
-                <AppText size={17} color={colors.blue} family='InterBold'>Activity User</AppText>
-                <View style={[styles.graphView]}>
-                  <FlatList
-                    data={activityTimeline}
-                    keyExtractor={(item) => item.id}
-                    renderItem={({ item, index }) => (
-                      <ActivityCard index={index} todayPunchInData={todayPunchInData} item={item} navigation={navigation} />
-                    )}
-                  />
-                </View>
-                <View style={[styles.row, { justifyContent: 'space-between', marginTop: 40 }]}>
-                  <Pressable style={[styles.chatButton, { backgroundColor: colors.blue }]}>
-                    <ChatIcon />
-                    <AppText size={14} color={colors.white} family='InterBold' >Customers</AppText>
-                  </Pressable>
-                  <Pressable style={[styles.chatButton, { backgroundColor: '#D2DAEE' }]} onPress={() => {
-                    navigation?.navigate("ProductCatalogue")
+              <TopPerformingSkus />
 
-                  }}>
-                    <CallIcon />
-                    <AppText size={14} color={'#395299'} family='InterBold' >Add Order</AppText>
-                  </Pressable>
-                </View>
-                <View style={{ height: 50 }} />
-              </View>
+              <PromotionalActivitiesOverview
+                onViewAll={() => navigation.navigate('PromotionalPerformance')}
+              />
             </SafeAreaView>
           </ScrollView>
         </Animated.View>
