@@ -5,8 +5,7 @@ import { rw } from '../../utils/responsive'
 import { CallIcon, ChatIcon, FirstUserIcon, FourthUserIcon, LogoIcon, SecondUserIcon, ThirdUserIcon } from '../../assets/svgs/HomePageSvgs'
 import { SafeAreaView } from 'react-native-safe-area-context'
 import AppText from '../../components/AppText/AppText'
-import Graph from '../../components/atoms/Graph'
-import { ArrowDownIcon, CrossIcon } from '../../assets/svgs/SvgsFile'
+import { CrossIcon } from '../../assets/svgs/SvgsFile'
 import { colors } from '../../utils/Colors'
 import { activityTimeline, dashboardTiles, summaryStats } from '../../components/Comman/CommanFunction'
 import TileCard from '../../components/atoms/TileCard'
@@ -31,6 +30,10 @@ import useLocationHook from '../../api/hooks/uselocationhook'
 import { requestLocationPermission } from '../../utils/Location/permissions'
 import LocationService from '../../utils/Location/LocationService'
 import NotificationBell from '../../components/NotificationBell'
+import AttendanceOverview, { AttendanceCounts } from '../../components/atoms/AttendanceOverview'
+import DashboardSummary from '../../components/atoms/DashboardSummary'
+import TargetAchievementOverview from '../../components/atoms/TargetAchievementOverview'
+import SecondaryPartnerDetails from '../../components/atoms/SecondaryPartnerDetails'
 
 
 interface DropdownItem {
@@ -57,6 +60,14 @@ const Home = () => {
   const [isPunchedIn, setIsPunchedIn] = useState<any>(false);
   const [todayPunchInData, setTodayPunchInData] = useState<any>(null);
   const [loadingPunchStatus, setLoadingPunchStatus] = useState(true);
+  const [attendanceLoading, setAttendanceLoading] = useState(true);
+  const [attendanceCounts, setAttendanceCounts] = useState<AttendanceCounts>({
+    total: 0,
+    market: 0,
+    leave: 0,
+    missed: 0,
+    holiday: 0,
+  });
   const [loaderLeave, setLoaderLeave] = useState(false);
 
   // ─── Leave Modal States ─────────────────────────────────────────────
@@ -268,10 +279,72 @@ const Home = () => {
     }
   }
 
+  const fetchAttendanceSummary = async () => {
+    try {
+      setAttendanceLoading(true);
+      const token = store.getState()?.auth?.token;
+      const today = new Intl.DateTimeFormat('en-CA', {
+        timeZone: 'Asia/Kolkata',
+        year: 'numeric',
+        month: '2-digit',
+        day: '2-digit',
+      }).format(new Date());
+
+      const requestConfig = {
+        headers: {
+          Authorization: `Bearer ${token}`,
+          Accept: 'application/json',
+        },
+        validateStatus: (status: number) => status >= 200 && status < 500,
+      };
+      const [response, reportingUsersResponse] = await Promise.all([
+        axios.get('https://elofic.fieldkonnect.io/api/getAllUserPunchInOut', {
+          ...requestConfig,
+          params: {
+            start_date: today,
+            end_date: today,
+            pageSize: 10000,
+          },
+        }),
+        axios.post('https://elofic.fieldkonnect.io/api/reporting/users', {
+          start_date: today,
+          end_date: today,
+          pageSize: 100,
+        }, requestConfig),
+      ]);
+
+      const rows: any[] = Array.isArray(response.data?.data) ? response.data.data : [];
+      const attendanceUsers: any[] = Array.isArray(response.data?.users) ? response.data.users : [];
+      const reportingUsers: any[] = Array.isArray(reportingUsersResponse.data?.users) ? reportingUsersResponse.data.users : [];
+      const users = attendanceUsers.length ? attendanceUsers : reportingUsers;
+      const uniqueUsers = (items: any[]) => new Set(items.map(item => item.name).filter(Boolean)).size;
+      const isLeave = (item: any) => String(item.working_type || '').toLowerCase().includes('leave');
+      const isHoliday = (item: any) => String(item.working_type || '').toLowerCase().includes('holiday');
+      const holidayRows = rows.filter(isHoliday);
+      const leaveRows = rows.filter(item => isLeave(item) && !isHoliday(item));
+      const marketRows = rows.filter(item => !isLeave(item) && !isHoliday(item) && item.punch_in);
+      const attended = uniqueUsers(rows.filter(item => item.punch_in));
+      const total = users.length || attended;
+
+      setAttendanceCounts({
+        total,
+        market: uniqueUsers(marketRows),
+        leave: uniqueUsers(leaveRows),
+        missed: Math.max(0, total - attended),
+        holiday: uniqueUsers(holidayRows),
+      });
+    } catch (error) {
+      console.log('Failed to fetch attendance summary:', error);
+    } finally {
+      setAttendanceLoading(false);
+    }
+  };
+
   // Refresh when screen is focused
   useFocusEffect(
     useCallback(() => {
       fetchPunchInStatus();
+      fetchAttendanceSummary();
     }, [])
   );
 
@@ -547,21 +620,6 @@ const Home = () => {
   }, [userSearchText, users]);
 
 
-  const formatYYYYMMDD = (date: any): string => {
-    if (!date) return '';
-
-    const d = new Date(date);
-
-    if (isNaN(d.getTime())) return '';
-
-    // Use LOCAL year, month, day — ignore timezone / UTC completely
-    const year = d.getFullYear();
-    const month = String(d.getMonth() + 1).padStart(2, '0'); // 01 to 12
-    const day = String(d.getDate()).padStart(2, '0');     // 01 to 31
-
-    return `${year}-${month}-${day}`;
-  };
-
   return (
     <View style={[styles.container,]}>
       <StatusBar
@@ -682,63 +740,17 @@ const Home = () => {
             </Pressable> */}
               </View>
 
-              <View style={[styles.container, { paddingHorizontal: rw(20), backgroundColor: 'transparent' }]}>
-                <View style={[styles.graphView]}>
-                  <AppText size={17} color={colors.blue} family='InterBold'>Target & Achievement</AppText>
-                  <View style={[styles.row, { justifyContent: 'space-between', marginVertical: rw(30) }]}>
-                    <Graph />
-                    <View style={{ gap: 15 }}>
-                      <Pressable style={[styles.UserBox, styles.row]} onPress={() => {
-                        Toast.show({
-                          type: 'info',
-                          text1: 'Coming soon'
-                        })
-                        // setShowUserModal(true)
-                      }}>
-                        <View style={{ flex: 1, justifyContent: 'center', }}>
-                          <AppText size={14} color='#353535' family='InterRegular'>{selectedUser ? selectedUser.label : "User"}</AppText>
-                        </View>
-                        <ArrowDownIcon />
-                      </Pressable>
-                      <Pressable style={[styles.UserBox, styles.row]} onPress={() => {
-                        Toast.show({
-                          type: 'info',
-                          text1: 'Coming soon'
-                        })
-                        // setShowCal(true)
-                      }}>
-                        <View style={{ flex: 1, justifyContent: 'center', }}>
-                          {
-                            (startDate && endDate) ? (
-                              <AppText size={12} color="black" family="InterRegular">
-                                {formatYYYYMMDD(startDate)} : {formatYYYYMMDD(endDate)}
-                              </AppText>
-                            ) : (
-                              <AppText size={14} color='#353535' family='InterRegular'>Year</AppText>
-                            )
-                          }
-                        </View>
-                        {/* <ArrowDownIcon /> */}
-                      </Pressable>
+              <AttendanceOverview
+                counts={attendanceCounts}
+                loading={attendanceLoading}
+                onViewAll={() => navigation.navigate('AttendanceReport')}
+              />
 
-                    </View>
-                  </View>
-                  <View style={[styles.row, { justifyContent: 'space-between' }]}>
-                    <View>
-                      <AppText size={12} color='#353535' family='InterLight' align='center'>Target Value</AppText>
-                      <AppText size={14} color={colors.blue} family='InterSemiBold' align='center'>0 Lac</AppText>
-                    </View>
-                    <View>
-                      <AppText size={12} color='#353535' family='InterLight' align='center'>Percentage (%)</AppText>
-                      <AppText size={14} color={colors.blue} family='InterSemiBold' align='center'>0%</AppText>
-                    </View>
-                    <View>
-                      <AppText size={12} color='#353535' family='InterLight' align='center'>Achievement Value</AppText>
-                      <AppText size={14} color={colors.blue} family='InterSemiBold' align='center'>0 Lac</AppText>
-                    </View>
-                  </View>
-                </View>
-              </View>
+              <DashboardSummary />
+
+              <SecondaryPartnerDetails />
+
+              <TargetAchievementOverview />
 
               <FlatList
                 data={summaryStats}
