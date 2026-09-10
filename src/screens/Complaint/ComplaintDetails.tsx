@@ -6,12 +6,13 @@ import AppText from '../../components/AppText/AppText'
 import { KeyboardAwareScrollView } from 'react-native-keyboard-controller'
 import FastImage from 'react-native-fast-image'
 import { BASE_URL } from '../../api/AxiosClient'
+import { SafeAreaView } from 'react-native-safe-area-context'
 
 const ComplaintDetails = ({ navigation, route }: any) => {
   const data = route?.params?.item?.rawData
   console.log(route?.params, 'reasdfasfd')
   return (
-    <View style={styles.container}>
+    <SafeAreaView style={styles.safeArea} edges={['top']}>
       <View style={[styles.header, styles.row, { alignItems: "flex-start", }]}>
         <Pressable style={styles.backBtn} onPress={() => navigation.goBack()}>
           <Image
@@ -30,7 +31,8 @@ const ComplaintDetails = ({ navigation, route }: any) => {
         bottomOffset={50}
         keyboardDismissMode='on-drag'
         showsVerticalScrollIndicator={false}
-        style={[styles.container, { paddingHorizontal: 16, marginTop: 16 }]} >
+        style={[styles.container, { paddingHorizontal: 16 }]}
+        contentContainerStyle={{ paddingTop: 20 }}>
         <View style={styles.basicDetailsview}>
           <View style={[styles.heading, styles.row]}>
             <View style={styles.box}>
@@ -79,7 +81,7 @@ const ComplaintDetails = ({ navigation, route }: any) => {
             <View style={styles.box}>
               <BasicBoxIcon />
             </View>
-            <AppText size={16} color='white' family='InterBold'>1 · Customer Details</AppText>
+            <AppText size={16} color='white' family='InterBold'>2 · Customer Details</AppText>
           </View>
           <View style={styles.innerView}>
             <View style={[styles.row, styles.firstrowView]}>
@@ -134,7 +136,7 @@ const ComplaintDetails = ({ navigation, route }: any) => {
             <View style={styles.box}>
               <BasicBoxIcon />
             </View>
-            <AppText size={16} color='white' family='InterBold'>1 · Complaint Details</AppText>
+            <AppText size={16} color='white' family='InterBold'>3 · Complaint Details</AppText>
           </View>
           <View style={styles.innerView}>
             <View style={[styles.row, styles.firstrowView]}>
@@ -176,7 +178,7 @@ const ComplaintDetails = ({ navigation, route }: any) => {
         </View>
         <View style={{ height: 50 }} />
       </KeyboardAwareScrollView>
-    </View>
+    </SafeAreaView>
   )
 }
 

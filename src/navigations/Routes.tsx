@@ -38,6 +38,7 @@ import CreateComplaint from '../screens/Complaint/CreateComplaint';
 import ComplaintDetails from '../screens/Complaint/ComplaintDetails';
 import ForceUpdateScreen from '../screens/Login/ForceUpdateScreen';
 import Notifications from '../screens/Notifications';
+import MyProfile from '../screens/MyProfile';
 import { APP_VERSION, compareVersions } from '../utils/appVersion';
 
 const Stack = createNativeStackNavigator<RootStackParamList>();
@@ -210,6 +211,10 @@ const Routes = () => {
         <Stack.Screen name='Notifications' component={Notifications} options={{
           headerShown: true,
           title: 'Notifications'
+        }} />
+        <Stack.Screen name='MyProfile' component={MyProfile} options={{
+          headerShown: true,
+          title: 'My Profile'
         }} />
           </>
         )}

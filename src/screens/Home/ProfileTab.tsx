@@ -1,8 +1,8 @@
-import { View, Text, ScrollView, Pressable } from 'react-native'
-import React from 'react'
+import { ActivityIndicator, Alert, Platform, Pressable, ScrollView, StyleSheet, View } from 'react-native'
+import React, { useState } from 'react'
 import { styles } from './styles'
 import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context'
-import { DocumentsIcon, LogoIcon, LogoutIcon, MspActicityIcon, OrderHistoryIcon, OrderIcon, ProfileIcon, ReportIcon, SunnyIcon, VillageIcon } from '../../assets/svgs/HomePageSvgs'
+import { LogoIcon, SunnyIcon } from '../../assets/svgs/HomePageSvgs'
 import AppText from '../../components/AppText/AppText'
 import LinearGradient from 'react-native-linear-gradient'
 import FastImage from 'react-native-fast-image'
@@ -14,6 +14,10 @@ import { colors } from '../../utils/Colors'
 import { BackIcon, UserIcon } from '../../assets/svgs/SvgsFile'
 import LocationService from '../../utils/Location/LocationService'
 import { logoutApi } from '../../api/query/AuthAPI'
+import { resolveMediaUrl } from '../../api/AxiosClient'
+import axiosClient from '../../api/AxiosClient'
+import { API_ENDPOINT } from '../../api/ApiUrls'
+import Svg, { Path } from 'react-native-svg'
 
 const data = [
   { id: 1, icon: require('../../assets/images/HomeTabs/myprofile.png'), name: 'My Profile' },
@@ -22,11 +26,13 @@ const data = [
   // { id: 4, icon: require('../../assets/images/HomeTabs/documents.png'), name: 'Documents' },
   // { id: 5, icon: require('../../assets/images/HomeTabs/mspactivity.png'), name: 'MSP Activity' },
   { id: 6, icon: require('../../assets/images/HomeTabs/logout.png'), name: 'Logout' },
+  { id: 7, name: 'Delete Account' },
 ]
 
 const ProfileTab = ({ handleDrawerClose }: any) => {
   const navigation: any = useNavigation()
   const dispatch = useDispatch();
+  const [loading, setLoading] = useState(false);
   const { user } = useAppSelector(
     (state) => state.auth
   );
@@ -48,8 +54,52 @@ const ProfileTab = ({ handleDrawerClose }: any) => {
     }
   };
 
+  const clearSession = async () => {
+    await LocationService.stopTracking();
+    dispatch(logout());
+    dispatch(setUser(null));
+    dispatch(setToken(null));
+    navigation.reset({
+      index: 0,
+      routes: [{ name: 'LoginScreen' }],
+    });
+  };
+
+  const handleDeleteAccount = () => {
+    Alert.alert(
+      'Delete Account',
+      'Are you sure you want to delete this account?',
+      [
+        { text: 'Cancel', style: 'cancel' },
+        {
+          text: 'Delete',
+          style: 'destructive',
+          onPress: async () => {
+            try {
+              setLoading(true);
+              await axiosClient.post(API_ENDPOINT.DELETE_ACCOUNT);
+              await clearSession();
+            } catch (error: any) {
+              Alert.alert(
+                'Error',
+                error?.response?.data?.message || 'Failed to delete account',
+              );
+            } finally {
+              setLoading(false);
+            }
+          },
+        },
+      ],
+    );
+  };
+
   return (
     <View style={{ flex: 1 }}>
+      {loading && (
+        <View style={[StyleSheet.absoluteFillObject, styles.loadingOverlay]}>
+          <ActivityIndicator size="large" color={colors.blue} />
+        </View>
+      )}
       <ScrollView style={[styles.container, { marginBottom: 20 }]} showsVerticalScrollIndicator={false}>
         {/* <View style={[styles.blueContaier, {
           height: 255 ,
@@ -70,7 +120,10 @@ const ProfileTab = ({ handleDrawerClose }: any) => {
           </View>
           <LinearGradient style={[styles.profileView, styles.row]} colors={['#395299', 'rgba(56, 143, 205, 0.5)']} locations={[0.5, 1]}>
             <View style={{ height: 101, width: 101, borderRadius: 55, marginLeft: 16, marginBottom: 20, backgroundColor: 'rgba(255,255,255,0.2)', overflow: 'hidden', justifyContent: 'center', alignItems: 'center', }}>
-              <UserIcon />
+              {!user?.profile_image && <UserIcon />}
+              {!!user?.profile_image && (
+                <FastImage source={{ uri: resolveMediaUrl(user.profile_image) }} style={{ height: 101, width: 101, borderRadius: 101, position: 'absolute' }} />
+              )}
               {/* <FastImage source={require('../../assets/images/HomeTabs/profile.png')} style={{ height: 101, width: 101, borderRadius: 101, position: 'absolute' }} /> */}
               {/* {
                 user?.profile_image && (
@@ -87,14 +140,22 @@ const ProfileTab = ({ handleDrawerClose }: any) => {
 
           </LinearGradient>
         </View>
-        <SafeAreaView style={{ flex: 1 }} edges={['top']}>
+        <SafeAreaView style={{ flex: 1 }} edges={['bottom']}>
 
-          <View style={{ flex: 1, marginTop: 16, gap: 16, paddingHorizontal: 16 }}>
+          <View style={{ flex: 1, marginTop: 6, gap: 16, paddingHorizontal: 16 }}>
             {
-              data?.map((item: any, index: number) => {
+              data?.map((item: any) => {
+                if (Platform.OS === 'android' && item?.name === 'Delete Account') {
+                  return null;
+                }
+
                 return (
-                  <Pressable style={[styles.itemVIew, styles.row]} onPress={async () => {
-                    if (item?.name == "Report") {
+                  <Pressable key={item.id} style={[styles.itemVIew, styles.row]} onPress={async () => {
+                    if (item?.name == "My Profile") {
+                      handleDrawerClose()
+                      navigation.navigate('MyProfile')
+                    }
+                    else if (item?.name == "Report") {
                       navigation.navigate('Reports')
                       // navigation.navigate('UserActivityPage')
                       // navigation.navigate('AttendanceReport')
@@ -106,13 +167,20 @@ const ProfileTab = ({ handleDrawerClose }: any) => {
                     else if (item?.name == "Logout") {
                       await handleLogout();
                     }
+                    else if (item?.name === "Delete Account") {
+                      handleDeleteAccount();
+                    }
 
                   }}>
-                    <FastImage
-                      source={item?.icon}
-                      style={{ height: 20, width: 20 }}
-                      resizeMode='contain'
-                    />
+                    {item?.name === 'Delete Account' ? (
+                      <DeleteDrawerIcon />
+                    ) : (
+                      <FastImage
+                        source={item?.icon}
+                        style={{ height: 20, width: 20 }}
+                        resizeMode='contain'
+                      />
+                    )}
                     <AppText size={16} color='black' family='InterMedium'>{item?.name}</AppText>
                   </Pressable>
                 )
@@ -126,3 +194,15 @@ const ProfileTab = ({ handleDrawerClose }: any) => {
 }
 
 export default ProfileTab
+
+const DeleteDrawerIcon = () => (
+  <Svg width={20} height={20} viewBox="0 0 24 24" fill="none">
+    <Path
+      d="M4 7h16M9 7V4h6v3m3 0l-1 14H7L6 7m4 4v6m4-6v6"
+      stroke="#3895D3"
+      strokeWidth="2"
+      strokeLinecap="round"
+      strokeLinejoin="round"
+    />
+  </Svg>
+)

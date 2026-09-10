@@ -4,6 +4,28 @@ import store from '../components/redux/Store';
 import {handleUnauthorized} from './handleUnauthorized';
 export const BASE_URL = 'https://elofic.fieldkonnect.io/';
 // export const BASE_URL = 'http://192.168.1.4:8000/';
+
+export const resolveMediaUrl = (value?: string | null): string => {
+  const path = String(value || '').trim();
+
+  if (!path) return '';
+  if (/^https?:\/\//i.test(path)) return path;
+  if (path.startsWith('//')) return `https:${path}`;
+
+  const baseUrl = BASE_URL.replace(/\/+$/, '');
+  const normalizedPath = path.replace(/^\/+/, '');
+
+  if (normalizedPath.startsWith('public/') || normalizedPath.startsWith('storage/')) {
+    return `${baseUrl}/${normalizedPath}`;
+  }
+
+  if (normalizedPath.startsWith('uploads/')) {
+    return `${baseUrl}/public/${normalizedPath}`;
+  }
+
+  return `${baseUrl}/public/storage/${normalizedPath}`;
+};
+
 const axiosClient = axios.create({ baseURL: BASE_URL });
 
 axiosClient.interceptors.request.use(async config => {

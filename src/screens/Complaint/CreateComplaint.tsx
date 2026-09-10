@@ -1,4 +1,4 @@
-import { View, Text, Pressable, Image, TextInput, FlatList, ScrollView, Switch, Modal, ActivityIndicator, Platform, PermissionsAndroid, Alert } from 'react-native'
+import { View, Text, Pressable, Image, TextInput, FlatList, ScrollView, Switch, Modal, ActivityIndicator, Alert } from 'react-native'
 import React, { useCallback, useEffect, useState } from 'react'
 import { styles } from './styles'
 import { AeroPlaneIcon, AttachmentIcon, BasicBoxIcon, ChatIcon, CircleCheckIcon, CloudUpIcon, FilterIcon, GalleryIcon, HeadSetIcon, InfoIcon, ListIcon, MIcIcon, ResetIcon } from '../../assets/svgs/ComplaintSvgs'
@@ -12,16 +12,12 @@ import { TwoMenIcon } from '../../assets/svgs/BottomTabSvgs'
 import { UserIcon } from '../../assets/svgs/SvgsFile'
 import { KeyboardAwareScrollView } from 'react-native-keyboard-controller'
 import store from '../../components/redux/Store'
+import axiosClientForm from '../../api/AxiosForm'
 import FastImage from 'react-native-fast-image';
 import {
   launchImageLibrary,
   Asset,
 } from 'react-native-image-picker';
-import {
-  PERMISSIONS,
-  request,
-  RESULTS,
-} from 'react-native-permissions';
 
 const CreateComplaint = ({ navigation }: any) => {
   const [partNo, setPartNo] = useState('')
@@ -105,7 +101,6 @@ const CreateComplaint = ({ navigation }: any) => {
   const [photoError, setPhotoError] =
     useState('');
 
-
   const [submitLoading, setSubmitLoading] =
     useState(false);
 
@@ -116,9 +111,6 @@ const CreateComplaint = ({ navigation }: any) => {
 
     try {
       setSubmitLoading(true);
-
-      const token =
-        store.getState()?.auth?.token;
 
       const formData = new FormData();
 
@@ -204,10 +196,7 @@ const CreateComplaint = ({ navigation }: any) => {
       );
 
       // Photo Upload
-      if (
-        complaintPhoto?.uri &&
-        complaintPhoto?.fileName
-      ) {
+      if (complaintPhoto?.uri) {
         formData.append(
           'attachment_file',
           {
@@ -222,22 +211,13 @@ const CreateComplaint = ({ navigation }: any) => {
         );
       }
 
-      const response = await fetch(
-        'https://elofic.fieldkonnect.io/api/complaints',
-        {
-          method: 'POST',
-          headers: {
-            Authorization: `Bearer ${token}`,
-            Accept: 'application/json',
-            'Content-Type':
-              'multipart/form-data',
-          },
-          body: formData,
-        },
+      const response = await axiosClientForm.post(
+        'api/complaints',
+        formData,
+        { headers: { Accept: 'application/json' } },
       );
 
-      const json =
-        await response.json();
+      const json = response.data;
 
       console.log(
         'Complaint Response =>',
@@ -245,7 +225,7 @@ const CreateComplaint = ({ navigation }: any) => {
       );
 
       if (
-        response.ok &&
+        json &&
         (json.status === true ||
           json.status === 'success')
       ) {
@@ -265,15 +245,26 @@ const CreateComplaint = ({ navigation }: any) => {
           'Something went wrong',
         );
       }
-    } catch (error) {
+    } catch (error: any) {
       console.log(
         'Complaint Submit Error =>',
-        error,
+        error?.response?.data || error,
       );
+
+      const responseData = error?.response?.data;
+      const validationErrors = responseData?.errors;
+      const firstValidationMessage = validationErrors && typeof validationErrors === 'object'
+        ? Object.values(validationErrors).flat().find(Boolean)
+        : null;
 
       Alert.alert(
         'Error',
-        'Unable to submit complaint',
+        String(
+          firstValidationMessage
+          || responseData?.message
+          || error?.message
+          || 'Unable to submit complaint',
+        ),
       );
     } finally {
       setSubmitLoading(false);
@@ -469,47 +460,6 @@ const CreateComplaint = ({ navigation }: any) => {
   };
 
 
-  const requestGalleryPermission =
-    async () => {
-      try {
-        if (Platform.OS === 'android') {
-          if (Platform.Version >= 33) {
-            const result =
-              await PermissionsAndroid.request(
-                PermissionsAndroid.PERMISSIONS
-                  .READ_MEDIA_IMAGES,
-              );
-
-            return (
-              result ===
-              PermissionsAndroid.RESULTS.GRANTED
-            );
-          }
-
-          const result =
-            await PermissionsAndroid.request(
-              PermissionsAndroid.PERMISSIONS
-                .READ_EXTERNAL_STORAGE,
-            );
-
-          return (
-            result ===
-            PermissionsAndroid.RESULTS.GRANTED
-          );
-        }
-
-        const iosPermission =
-          await request(
-            PERMISSIONS.IOS.PHOTO_LIBRARY,
-          );
-
-        return iosPermission === RESULTS.GRANTED;
-      } catch (error) {
-        console.log(error);
-        return false;
-      }
-    };
-
   const confirmReset = () => {
     Alert.alert(
       'Reset Form',
@@ -564,7 +514,6 @@ const CreateComplaint = ({ navigation }: any) => {
     setAttachmentType('photo');
     setComplaintPhoto(null);
     setPhotoError('');
-
     // Search States
     setDistributorSearch('');
     setLocationSearch('');
@@ -577,48 +526,32 @@ const CreateComplaint = ({ navigation }: any) => {
   };
 
 
-  const pickComplaintImage =
-    async () => {
-      const hasPermission =
-        Platform.OS == "android" ? true : await requestGalleryPermission();
+  const pickComplaintImage = async () => {
+    try {
+      const response = await launchImageLibrary({
+        mediaType: 'photo',
+        quality: 0.8,
+        includeBase64: false,
+        selectionLimit: 1,
+      });
 
-      if (!hasPermission) {
+      if (response.didCancel) return;
+
+      if (response.errorCode) {
+        Alert.alert('Photo attachment', response.errorMessage || 'Unable to open photo library.');
         return;
       }
 
-      launchImageLibrary(
-        {
-          mediaType: 'photo',
-          quality: 0.8,
-          includeBase64: false,
-          selectionLimit: 1,
-        },
-        response => {
-          if (response.didCancel) {
-            return;
-          }
-
-          if (response.errorCode) {
-            console.log(
-              response.errorMessage,
-            );
-            return;
-          }
-
-          if (
-            response.assets &&
-            response.assets.length > 0
-          ) {
-            setComplaintPhoto(
-              response.assets[0],
-            );
-
-            setPhotoError('');
-          }
-        },
-      );
-    };
-
+      const asset = response.assets?.[0];
+      if (asset?.uri) {
+        setComplaintPhoto(asset);
+        setPhotoError('');
+      }
+    } catch (error: any) {
+      console.log('Complaint photo picker error =>', error);
+      Alert.alert('Photo attachment', error?.message || 'Unable to open photo library.');
+    }
+  };
 
   const handleToggleSameAsContact = (value: boolean) => {
     setSameAsContact(value);

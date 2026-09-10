@@ -4,6 +4,13 @@ import { rw } from "../../utils/responsive";
 import { SCREEN_WIDTH } from "../../utils/misc";
 
 export const styles = StyleSheet.create({
+    loadingOverlay: {
+        zIndex: 20,
+        elevation: 20,
+        alignItems: 'center',
+        justifyContent: 'center',
+        backgroundColor: 'rgba(255,255,255,0.65)',
+    },
     container: {
         flex: 1,
         backgroundColor: colors.bgColor
