@@ -224,11 +224,15 @@ const FilterDropdown = ({ data, value, placeholder, onChange, active = false }: 
     selectedTextStyle={[styles.dropdownText, active && styles.activeDropdownText]}
     placeholderStyle={[styles.dropdownText, active && styles.activeDropdownText]}
     itemTextStyle={styles.dropdownItemText}
+    inputSearchStyle={styles.dropdownSearchInput}
     data={data}
     labelField="label"
     valueField="value"
     value={value}
     placeholder={placeholder}
+    search
+    searchPlaceholder={`Search ${placeholder.toLowerCase()}...`}
+    maxHeight={360}
     onChange={item => onChange(item.value)}
     renderRightIcon={() => <AppText size={10} color={active ? colors.white : '#171719'}>▼</AppText>}
   />
@@ -272,6 +276,7 @@ const styles = StyleSheet.create({
   activeDropdownText: { color: colors.white },
   dropdownMenu: { borderRadius: 12 },
   dropdownItemText: { color: '#242424', fontSize: 13 },
+  dropdownSearchInput: { height: 42, borderRadius: 10, color: '#242424', fontSize: 13 },
   feedback: { flex: 1, gap: 12, alignItems: 'center', justifyContent: 'center' },
   table: { width: TABLE_WIDTH, marginHorizontal: 16, backgroundColor: colors.white },
   tableRow: { flexDirection: 'row' },

@@ -252,7 +252,9 @@ const Home = () => {
       const attendanceUsers: any[] = Array.isArray(response.data?.users) ? response.data.users : [];
       const reportingUsers: any[] = Array.isArray(reportingUsersResponse.data?.users) ? reportingUsersResponse.data.users : [];
       const users = attendanceUsers.length ? attendanceUsers : reportingUsers;
-      const uniqueUsers = (items: any[]) => new Set(items.map(item => item.name).filter(Boolean)).size;
+      const uniqueUsers = (items: any[]) => new Set(
+        items.map(item => item.user_id ?? item.name).filter(Boolean)
+      ).size;
       const isLeave = (item: any) => String(item.working_type || '').toLowerCase().includes('leave');
       const isHoliday = (item: any) => String(item.working_type || '').toLowerCase().includes('holiday');
       const holidayRows = rows.filter(isHoliday);

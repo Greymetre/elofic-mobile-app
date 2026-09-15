@@ -251,11 +251,15 @@ const FilterDropdown = ({ data, value, placeholder, onChange, wide = false }: {
     selectedTextStyle={styles.dropdownText}
     placeholderStyle={styles.dropdownText}
     itemTextStyle={styles.dropdownItemText}
+    inputSearchStyle={styles.dropdownSearchInput}
     data={data}
     labelField="label"
     valueField="value"
     value={value}
     placeholder={placeholder}
+    search
+    searchPlaceholder={`Search ${placeholder.toLowerCase()}...`}
+    maxHeight={360}
     onChange={item => onChange(item.value)}
     renderRightIcon={() => <AppText size={10} color="#171719">▼</AppText>}
   />
@@ -280,6 +284,7 @@ const styles = StyleSheet.create({
   dropdownMenu: { borderRadius: 12 },
   dropdownText: { marginRight: 3, color: '#252525', fontSize: 12 },
   dropdownItemText: { color: '#252525', fontSize: 13 },
+  dropdownSearchInput: { height: 42, borderRadius: 10, color: '#252525', fontSize: 13 },
   periodTabs: { height: 52, padding: 5, marginTop: 17, borderRadius: 27, backgroundColor: '#EEEEF8', flexDirection: 'row' },
   periodTab: { flex: 1, borderRadius: 23, alignItems: 'center', justifyContent: 'center' },
   activePeriodTab: { backgroundColor: colors.blue },
