@@ -1,4 +1,4 @@
-import { View, Text, ScrollView, StatusBar, FlatList, Pressable, TouchableOpacity, Modal, useWindowDimensions, Modal as RNModal, TextInput, ActivityIndicator, Alert, Platform, Switch, } from 'react-native'
+import { View, Text, ScrollView, StatusBar, FlatList, Pressable, TouchableOpacity, Modal, useWindowDimensions, Modal as RNModal, TextInput, ActivityIndicator, Alert, Platform, } from 'react-native'
 import React, { useCallback, useEffect, useRef, useState } from 'react'
 import { styles } from './styles'
 import { rw } from '../../utils/responsive'
@@ -232,43 +232,21 @@ const Home = () => {
         },
         validateStatus: (status: number) => status >= 200 && status < 500,
       };
-      const [response, reportingUsersResponse] = await Promise.all([
-        axios.get('https://elofic.fieldkonnect.io/api/getAllUserPunchInOut', {
-          ...requestConfig,
-          params: {
-            start_date: today,
-            end_date: today,
-            pageSize: 10000,
-          },
-        }),
-        axios.post('https://elofic.fieldkonnect.io/api/reporting/users', {
-          start_date: today,
-          end_date: today,
-          pageSize: 100,
-        }, requestConfig),
-      ]);
+      const response = await axios.get('https://elofic.fieldkonnect.io/api/attendance/overview', {
+        ...requestConfig,
+        params: {
+          date: today,
+        },
+      });
 
-      const rows: any[] = Array.isArray(response.data?.data) ? response.data.data : [];
-      const attendanceUsers: any[] = Array.isArray(response.data?.users) ? response.data.users : [];
-      const reportingUsers: any[] = Array.isArray(reportingUsersResponse.data?.users) ? reportingUsersResponse.data.users : [];
-      const users = attendanceUsers.length ? attendanceUsers : reportingUsers;
-      const uniqueUsers = (items: any[]) => new Set(
-        items.map(item => item.user_id ?? item.name).filter(Boolean)
-      ).size;
-      const isLeave = (item: any) => String(item.working_type || '').toLowerCase().includes('leave');
-      const isHoliday = (item: any) => String(item.working_type || '').toLowerCase().includes('holiday');
-      const holidayRows = rows.filter(isHoliday);
-      const leaveRows = rows.filter(item => isLeave(item) && !isHoliday(item));
-      const marketRows = rows.filter(item => !isLeave(item) && !isHoliday(item) && item.punch_in);
-      const attended = uniqueUsers(rows.filter(item => item.punch_in));
-      const total = users.length || attended;
+      const totals = response.data?.data?.totals;
 
       setAttendanceCounts({
-        total,
-        market: uniqueUsers(marketRows),
-        leave: uniqueUsers(leaveRows),
-        missed: Math.max(0, total - attended),
-        holiday: uniqueUsers(holidayRows),
+        total: Number(totals?.employees) || 0,
+        market: Number(totals?.market) || 0,
+        leave: Number(totals?.leave) || 0,
+        missed: Number(totals?.mis_punch) || 0,
+        holiday: Number(totals?.holiday) || 0,
       });
     } catch (error) {
       console.log('Failed to fetch attendance summary:', error);
@@ -612,30 +590,27 @@ const Home = () => {
                       Apply Leave
                     </AppText>
                   </Pressable>
-                  <NotificationBell />
                   {loadingPunchStatus ? (
-                    <AppText size={14} color="white">...</AppText>
+                    <View style={styles.applyLeaveButton}>
+                      <ActivityIndicator size="small" color={colors.blue} />
+                    </View>
                   ) : (
-                    <>
-                      {
-                        isPunchedIn == "end" ? (
-                          <>
-                            <Pressable style={{ height: 30, paddingHorizontal: 12, borderRadius: 19, justifyContent: 'center', alignItems: 'center', backgroundColor: 'white' }}>
-                              <AppText color={colors.blue} size={12} family='InterMedium'>Day Ended</AppText>
-                            </Pressable>
-                          </>
-                        ) : (
-                          <Switch
-                            value={Boolean(isPunchedIn)}
-                            onValueChange={handleToggleAttendance}
-                            trackColor={{ false: '#767577', true: '#81B0FF' }}
-                            thumbColor={isPunchedIn ? '#36FD36' : '#F4F3F4'}
-                          />
-                        )
-                      }
-
-                    </>
+                    isPunchedIn == "end" ? (
+                      <View style={styles.applyLeaveButton}>
+                        <AppText color={colors.blue} size={10} family='InterSemiBold'>Day Ended</AppText>
+                      </View>
+                    ) : (
+                      <Pressable
+                        style={styles.applyLeaveButton}
+                        onPress={handleToggleAttendance}
+                      >
+                        <AppText color={colors.blue} size={10} family='InterSemiBold'>
+                          {isPunchedIn ? 'Punch Out' : 'Punch In'}
+                        </AppText>
+                      </Pressable>
+                    )
                   )}
+                  <NotificationBell />
                 </View>
               </View>
               <View style={styles.helloName}>

@@ -1,5 +1,5 @@
 import React, { useEffect, useMemo, useRef, useState } from 'react';
-import { ActivityIndicator, Pressable, RefreshControl, ScrollView, StyleSheet, View } from 'react-native';
+import { ActivityIndicator, Alert, Linking, Pressable, RefreshControl, ScrollView, StyleSheet, View } from 'react-native';
 import { useNavigation } from '@react-navigation/native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Dropdown } from 'react-native-element-dropdown';
@@ -14,6 +14,7 @@ type AttendanceRow = {
   branch_id: number | null;
   branch: string;
   employee: string;
+  mobile: string | null;
   reporting_head: string;
   type: Exclude<AttendanceType, ''>;
   market: boolean;
@@ -133,6 +134,22 @@ const AttendanceOverviewScreen = () => {
     setRetryKey(value => value + 1);
   };
 
+  const openDialer = async (mobile: string | null) => {
+    const phoneNumber = String(mobile || '').replace(/[^\d+]/g, '');
+
+    if (phoneNumber.replace(/\D/g, '').length < 10) {
+      Alert.alert('Mobile Number Unavailable', 'This employee does not have a valid mobile number.');
+      return;
+    }
+
+    try {
+      await Linking.openURL(`tel:${phoneNumber}`);
+    } catch (dialError) {
+      console.log('Unable to open phone dialer:', dialError);
+      Alert.alert('Unable to Call', 'Phone dialer could not be opened on this device.');
+    }
+  };
+
   return (
     <View style={styles.screen}>
       <View style={styles.hero}>
@@ -190,7 +207,17 @@ const AttendanceOverviewScreen = () => {
                   {branchRows.map(row => (
                     <View key={row.id} style={[styles.tableRow, styles.dataRow]}>
                       <BodyCell text={row.branch} style={styles.branchCell} />
-                      <BodyCell text={row.employee} style={styles.employeeCell} />
+                      <Pressable
+                        accessibilityRole="button"
+                        accessibilityLabel={`Call ${row.employee}`}
+                        style={[styles.cell, styles.employeeCell, styles.employeeCallCell]}
+                        onPress={() => openDialer(row.mobile)}
+                        hitSlop={6}
+                      >
+                        <AppText size={13} color={colors.blue} family="InterSemiBold" underline="underline" numLines={1}>
+                          {row.employee}
+                        </AppText>
+                      </Pressable>
                       <BodyCell text={row.reporting_head} style={styles.reportingCell} link />
                       {statusColumns.map(column => (
                         <View key={column.key} style={[styles.cell, styles.statusCell]}>
@@ -284,6 +311,7 @@ const styles = StyleSheet.create({
   cell: { paddingHorizontal: 10, justifyContent: 'center' },
   branchCell: { width: 95 },
   employeeCell: { width: 180 },
+  employeeCallCell: { minHeight: 52 },
   reportingCell: { width: 185 },
   statusCell: { width: 85, alignItems: 'center' },
   branchHeader: { height: 40, paddingHorizontal: 16, backgroundColor: '#E7EAF8', justifyContent: 'center' },

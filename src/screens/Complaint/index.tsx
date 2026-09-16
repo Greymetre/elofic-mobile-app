@@ -156,7 +156,9 @@ const Complaint = ({ navigation }: any) => {
           status:
             item?.complaint_status === 4
               ? 'Closed'
-              : 'Pending',
+              : item?.complaint_status === 5
+                ? 'Rejected'
+                : 'Pending',
 
           rawData: item,
         })) || [];

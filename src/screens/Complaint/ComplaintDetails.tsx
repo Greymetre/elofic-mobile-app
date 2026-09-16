@@ -10,6 +10,16 @@ import { SafeAreaView } from 'react-native-safe-area-context'
 
 const ComplaintDetails = ({ navigation, route }: any) => {
   const data = route?.params?.item?.rawData
+  const status = data?.complaint_status === 4
+    ? 'Closed'
+    : data?.complaint_status === 5
+      ? 'Rejected'
+      : 'Pending';
+  const statusMeta = status === 'Closed'
+    ? { color: '#2aae2a', backgroundColor: '#eaefea' }
+    : status === 'Rejected'
+      ? { color: '#C43B3B', backgroundColor: '#FDECEC' }
+      : { color: '#c28933', backgroundColor: '#f8f3e8' };
   console.log(route?.params, 'reasdfasfd')
   return (
     <SafeAreaView style={styles.safeArea} edges={['top']}>
@@ -33,6 +43,20 @@ const ComplaintDetails = ({ navigation, route }: any) => {
         showsVerticalScrollIndicator={false}
         style={[styles.container, { paddingHorizontal: 16 }]}
         contentContainerStyle={{ paddingTop: 20 }}>
+        <View style={{ alignItems: 'flex-end', marginBottom: 12 }}>
+          <View style={{
+            paddingHorizontal: 12,
+            paddingVertical: 5,
+            borderRadius: 20,
+            borderWidth: 1,
+            borderColor: statusMeta.color,
+            backgroundColor: statusMeta.backgroundColor,
+          }}>
+            <AppText size={12} color={statusMeta.color} family='InterBold'>
+              Status: {status}
+            </AppText>
+          </View>
+        </View>
         <View style={styles.basicDetailsview}>
           <View style={[styles.heading, styles.row]}>
             <View style={styles.box}>
@@ -143,12 +167,6 @@ const ComplaintDetails = ({ navigation, route }: any) => {
               <View style={styles.firstItem}>
                 <AppText size={11} transform='uppercase' family='InterMedium' color='rgba(0,0,0,0.5)'>Description</AppText>
                 <AppText size={13} family='InterBold' color='black'>{data?.description}</AppText>
-              </View>
-            </View>
-            <View style={[styles.row, styles.firstrowView]}>
-              <View style={styles.firstItem}>
-                <AppText size={11} transform='uppercase' family='InterMedium' color='rgba(0,0,0,0.5)'>Status</AppText>
-                <AppText size={13} family='InterBold' color='black'>{data?.complaint_status == 1 && "Pending" || data?.complaint_status == 4 && "Closed" || data?.complaint_status == 5 && "Rejected"}</AppText>
               </View>
             </View>
             {

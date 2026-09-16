@@ -766,10 +766,6 @@ const PACScreen = ({ navigation }: any) => {
             <AppText size={20} family="InterBold" color="white">Promotional Activity</AppText>
             <AppText size={14} color="#a8b3c6" family='InterMedium'>Elofic — Sales Team</AppText>
           </View>
-          <Pressable style={styles.newButton} onPress={() => navigation.navigate('CreatePac')}>
-            <PlusAddIcon color={'white'} height={14} width={14} />
-            <AppText size={14} family='InterBold' color="white">New</AppText>
-          </Pressable>
         </View>
         <View style={styles.statsContainer}>
           {[
@@ -871,6 +867,18 @@ const PACScreen = ({ navigation }: any) => {
         />
       </ScrollView>
 
+      <Pressable
+        accessibilityRole="button"
+        accessibilityLabel="Create promotional activity"
+        style={[
+          styles.fab,
+          { bottom: Platform.OS === 'ios' ? 110 : insets.bottom + 105 },
+        ]}
+        onPress={() => navigation.navigate('CreatePac')}
+      >
+        <PlusAddIcon color="white" height={26} width={26} />
+      </Pressable>
+
       {/* Calendar - Your Original Component */}
       <CustomerCalendar
         {...{ showCal, setShowCal }}
@@ -906,14 +914,20 @@ const styles = StyleSheet.create({
     backgroundColor: '#eef2fa'
 
   },
-  newButton: {
-    backgroundColor: '#455e86',
-    flexDirection: 'row',
+  fab: {
+    position: 'absolute',
+    right: 20,
+    width: 56,
+    height: 56,
+    borderRadius: 28,
+    backgroundColor: colors.blue,
+    justifyContent: 'center',
     alignItems: 'center',
-    gap: 6,
-    paddingHorizontal: 10,
-    paddingVertical: 2,
-    borderRadius: 999,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.3,
+    shadowRadius: 5,
+    elevation: 8,
   },
   statsContainer: {
     flexDirection: 'row',

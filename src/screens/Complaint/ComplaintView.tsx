@@ -9,8 +9,14 @@ import { LocationIcon, PhoneICon } from '../../assets/svgs/HomePageSvgs';
 import { CalenderIcon, EyeIcon, LOcationIcon } from '../../assets/svgs/SvgsFile';
 
 const ComplaintView = ({ item, index, navigation }: { item: any, index: number, navigation: any }) => {
+  const statusMeta = item?.status === 'Closed'
+    ? { color: '#2aae2a', backgroundColor: '#eaefea', symbol: '✓' }
+    : item?.status === 'Rejected'
+      ? { color: '#C43B3B', backgroundColor: '#FDECEC', symbol: '✕' }
+      : { color: '#c28933', backgroundColor: '#f8f3e8', symbol: '⏳' };
+
   return (
-    <Pressable style={[styles.mainContainer, item?.status == "Pending" && { borderLeftColor: "#cf9744" }, item?.status == "Closed" && { borderLeftColor: "#2aae2a" }]} onPress={()=>{
+    <Pressable style={[styles.mainContainer, { borderLeftColor: statusMeta.color }]} onPress={()=>{
       navigation.navigate('ComplaintDetails', {item})
     }}>
       <View style={styles.upperData}>
@@ -22,22 +28,14 @@ const ComplaintView = ({ item, index, navigation }: { item: any, index: number, 
             <AppText color={colors.black} size={15} family='InterBold'>{item?.name}</AppText>
             <AppText color={colors.blue} size={10} family='InterSemiBold'>{item?.custId}</AppText>
           </View>
-          {
-            item?.status == "Pending" && (
-              <View style={[styles.statusView, { backgroundColor: "#f8f3e8", borderColor: "#c28933" }]}>
-                <AppText color='#c28933' size={12} family='InterBold'>
-                  <AppText color='#c28933' size={8} family='InterBold'>⏳</AppText>{' '}{item?.status}</AppText>
-              </View>
-            )
-          }
-          {
-            item?.status == "Closed" && (
-              <View style={[styles.statusView, { backgroundColor: "#eaefea", borderColor: "#2aae2a" }]}>
-                <AppText color='#2aae2a' size={12} family='InterBold'>
-                  <AppText color='#2aae2a' size={10} family='InterBold'>✓</AppText>{' '}{item?.status}</AppText>
-              </View>
-            )
-          }
+          <View style={[styles.statusView, {
+            backgroundColor: statusMeta.backgroundColor,
+            borderColor: statusMeta.color,
+          }]}>
+            <AppText color={statusMeta.color} size={12} family='InterBold'>
+              {statusMeta.symbol}{' '}{item?.status || 'Pending'}
+            </AppText>
+          </View>
         </View>
         <View style={[styles.detailsView, styles.row]}>
           <View style={[styles.row, styles.oneView]}>

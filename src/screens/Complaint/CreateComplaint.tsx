@@ -1,5 +1,5 @@
 import { View, Text, Pressable, Image, TextInput, FlatList, ScrollView, Switch, Modal, ActivityIndicator, Alert } from 'react-native'
-import React, { useCallback, useEffect, useState } from 'react'
+import React, { useCallback, useEffect, useRef, useState } from 'react'
 import { styles } from './styles'
 import { AeroPlaneIcon, AttachmentIcon, BasicBoxIcon, ChatIcon, CircleCheckIcon, CloudUpIcon, FilterIcon, GalleryIcon, HeadSetIcon, InfoIcon, ListIcon, MIcIcon, ResetIcon } from '../../assets/svgs/ComplaintSvgs'
 import AppText from '../../components/AppText/AppText'
@@ -13,6 +13,7 @@ import { UserIcon } from '../../assets/svgs/SvgsFile'
 import { KeyboardAwareScrollView } from 'react-native-keyboard-controller'
 import store from '../../components/redux/Store'
 import axiosClientForm from '../../api/AxiosForm'
+import axiosClient from '../../api/AxiosClient'
 import FastImage from 'react-native-fast-image';
 import {
   launchImageLibrary,
@@ -25,6 +26,9 @@ const CreateComplaint = ({ navigation }: any) => {
   const [contactNo, setContactNo] = useState('');
   const [whatsappNo, setWhatsappNo] = useState('');
   const [sameAsContact, setSameAsContact] = useState(false);
+  const [existingCustomer, setExistingCustomer] = useState<any>(null);
+  const [customerLookupLoading, setCustomerLookupLoading] = useState(false);
+  const customerLookupRequest = useRef(0);
 
   const [fullName, setFullName] = useState('');
   const [email, setEmail] = useState('');
@@ -229,15 +233,25 @@ const CreateComplaint = ({ navigation }: any) => {
         (json.status === true ||
           json.status === 'success')
       ) {
+        const complaintNumber = json?.data?.complaint_number || json?.complaint_number;
+        const successMessage = json.message || 'Complaint submitted successfully';
+
         Alert.alert(
-          'Success',
-          json.message ||
-          'Complaint submitted successfully',
+          'Complaint Submitted',
+          complaintNumber
+            ? `${successMessage}\n\nComplaint Number: ${complaintNumber}`
+            : successMessage,
+          [
+            {
+              text: 'OK',
+              onPress: () => {
+                handleReset();
+                navigation.goBack();
+              },
+            },
+          ],
+          { cancelable: false },
         );
-
-        handleReset();
-
-        navigation.goBack();
       } else {
         Alert.alert(
           'Error',
@@ -415,6 +429,67 @@ const CreateComplaint = ({ navigation }: any) => {
     }
   };
 
+  const clearAutoFilledCustomer = () => {
+    setExistingCustomer(null);
+    setWhatsappNo('');
+    setSameAsContact(false);
+    setFullName('');
+    setEmail('');
+    setAddress('');
+    setLandmark('');
+    setSelectedState(null);
+    setSelectedDistrict(null);
+    setSelectedCity(null);
+    setSelectedPincode(null);
+  };
+
+  const lookupCustomerByMobile = async (mobile: string) => {
+    const requestId = ++customerLookupRequest.current;
+
+    if (!/^\d{10}$/.test(mobile)) {
+      setExistingCustomer(null);
+      setCustomerLookupLoading(false);
+      return;
+    }
+
+    try {
+      setCustomerLookupLoading(true);
+      const response = await axiosClient.get('api/complaint/customer-by-mobile', {
+        params: { mobile },
+        validateStatus: status => status === 200 || status === 404,
+      });
+
+      if (requestId !== customerLookupRequest.current) return;
+
+      const customer = response.data?.data;
+      if (!customer) {
+        setExistingCustomer(null);
+        return;
+      }
+
+      setExistingCustomer(customer);
+      setFullName(customer.full_name || '');
+      setWhatsappNo(customer.whatsapp_number || mobile);
+      setSameAsContact(!customer.whatsapp_number || customer.whatsapp_number === mobile);
+      setEmail(customer.email_address || '');
+      setAddress(customer.address || '');
+      setLandmark(customer.place || '');
+      setSelectedState(customer.state || null);
+      setSelectedDistrict(customer.district || null);
+      setSelectedCity(customer.city || null);
+      setSelectedPincode(customer.pincode || null);
+    } catch (error) {
+      if (requestId === customerLookupRequest.current) {
+        setExistingCustomer(null);
+        console.log('Customer mobile lookup failed:', error);
+      }
+    } finally {
+      if (requestId === customerLookupRequest.current) {
+        setCustomerLookupLoading(false);
+      }
+    }
+  };
+
   const validateForm = () => {
     let newErrors: any = {};
 
@@ -432,14 +507,14 @@ const CreateComplaint = ({ navigation }: any) => {
 
     if (!contactNo.trim()) {
       newErrors.contactNo = 'Contact Number is required';
-    } else if (contactNo.length !== 10) {
-      newErrors.contactNo = 'Enter valid contact number';
+    } else if (!/^\d{10}$/.test(contactNo)) {
+      newErrors.contactNo = 'Enter valid 10-digit contact number';
     }
 
     if (!whatsappNo.trim()) {
       newErrors.whatsappNo = 'Whatsapp Number is required';
-    } else if (whatsappNo.length !== 10) {
-      newErrors.whatsappNo = 'Enter valid whatsapp number';
+    } else if (!/^\d{10}$/.test(whatsappNo)) {
+      newErrors.whatsappNo = 'Enter valid 10-digit whatsapp number';
     }
 
     if (!fullName.trim()) {
@@ -489,6 +564,9 @@ const CreateComplaint = ({ navigation }: any) => {
     setContactNo('');
     setWhatsappNo('');
     setSameAsContact(false);
+    setExistingCustomer(null);
+    setCustomerLookupLoading(false);
+    customerLookupRequest.current += 1;
     setFullName('');
     setEmail('');
 
@@ -810,17 +888,35 @@ const CreateComplaint = ({ navigation }: any) => {
                 <TextInput
                   value={contactNo}
                   onChangeText={(text) => {
-                    setContactNo(text);
+                    const digits = text.replace(/\D/g, '').slice(0, 10);
+                    const changedExistingCustomer = Boolean(
+                      existingCustomer && existingCustomer.contact_number !== digits,
+                    );
 
-                    if (sameAsContact) {
-                      setWhatsappNo(text);
+                    if (changedExistingCustomer) {
+                      clearAutoFilledCustomer();
                     }
+
+                    setContactNo(digits);
+
+                    if (sameAsContact && !changedExistingCustomer) {
+                      setWhatsappNo(digits);
+                    }
+
+                    lookupCustomerByMobile(digits);
                   }}
                   style={styles.partNo}
                   placeholder="Enter Contact Number"
                   placeholderTextColor={'rgba(0,0,0,0.2)'}
                   keyboardType="phone-pad"
+                  maxLength={10}
                 />
+                {customerLookupLoading && <ActivityIndicator size="small" color={colors.blue} />}
+                {existingCustomer && (
+                  <AppText size={11} color="#16835B" family="InterMedium">
+                    Existing customer found — details auto-filled. You can submit a new complaint.
+                  </AppText>
+                )}
                 {
                   errors.contactNo && (
                     <AppText
@@ -841,12 +937,13 @@ const CreateComplaint = ({ navigation }: any) => {
               <AppText transform='uppercase' size={11} color='rgba(0,0,0,0.8)' spacing={0.3} family='InterMedium'>WhatsApp Number<AppText size={12} color='red' family='InterMedium'> *</AppText></AppText>
               <TextInput
                 value={whatsappNo}
-                onChangeText={setWhatsappNo}
+                onChangeText={(text) => setWhatsappNo(text.replace(/\D/g, '').slice(0, 10))}
                 editable={!sameAsContact}
                 style={styles.partNo}
                 placeholder="Enter WhatsApp Number"
                 placeholderTextColor={'rgba(0,0,0,0.2)'}
                 keyboardType="phone-pad"
+                maxLength={10}
               />
               {
                 errors.whatsappNo && (
